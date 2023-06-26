@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd">
+	
+	<sub-flow name="SupplierRoleAnswerHistory" doc:id="e90f0c4f-a6c6-408b-904e-6e769d038770" >
+		<try doc:name="Try" doc:id="3415fe9c-ded8-4d73-8d65-c1fc3bd88d3a" >
+			<intel-json-logger:logger doc:name="Answer History Begin" doc:id="c02e9672-247e-41a3-b029-2d6b2d28acb9" message="Answer History Begin" />
+			<ee:transform doc:name="AnswerHistory Path Set" doc:id="589f8797-95e8-4815-823b-9832f2f7d602">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+					<ee:set-variable variableName="history_url" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::graphite_supplier_activity_history_path') ++ vars.CurrentSupplierID ++ p('secure::graphite_supplier_role_history_filter') ++ vars.historyFromdate ++ p('secure::graphite_history_beforedate') ++ vars.currentdatetime]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="a8407bda-f5a1-4a74-b07b-3825f784bdb0" >
+				<http:request method="GET" doc:name="AnswerHistoryCall" doc:id="a9f68f98-a0f5-463b-9854-093871f17d4f" config-ref="Graphite" path='#[vars.history_url]'>
+			<http:headers><![CDATA[#[output application/json
+---
+{
+	"Authorization" : (vars.graphiteToken)
+}]]]></http:headers>
+		</http:request>
+			</until-successful>
+			<ee:transform doc:name="AnswerHistory" doc:id="1b709502-d4e4-4cb4-ab7a-fb6333928e1c">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+					<ee:set-variable variableName="insertAuditHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+fun formatdatetime(d: DateTime) = d as DateTime {
+	format: "yyyy-MM-dd'T'HH:mm:ss.SSS"
+}
+var changes = flatten(payload.changeHistory.changes)
+var PurchOrgs = flatten(payload.changeHistory.changes.groups.INTEL_Purchasing_Org) filter $.changeType =="insert"
+var CompanyCodes = flatten(payload.changeHistory.changes.groups.INTEL_Company_Code) filter $.changeType =="insert"
+---
+{
+"INTEL_ERP_Role" : {
+		"Insert_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Role))
+		     flatMap ((item, index) ->
+			    item.groups.ERP_Record filter ($.changeType =="update") map (v, k) -> {
+			        "EntityID" : v."_id",
+			        "Difference" : if(typeOf(v.after.INTEL_ERP_Role) == Array)
+			        (v.after.INTEL_ERP_Role -- v.before.INTEL_ERP_Role)
+			        				else null,
+			        "SupplierRole_CreatedDate": (item.updatedAt),
+                    "SupplierRole_CreatedBy": (item.changedBy.name)
+			    }
+			)
+		)
+	},
+}
+	]]></ee:set-variable>
+					<ee:set-variable variableName="DeleteHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+import * from dw::core::Strings
+fun formatdatetime(d: DateTime) = d as DateTime {
+	format: "yyyy-MM-dd HH:mm:ss.SSS"
+}
+---
+{
+	"INTEL_ERP_Role" : {
+		"Update_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Role))
+		     flatMap ((item, index) ->
+			    item.groups.ERP_Record filter ($.changeType =="update") map (v, k) -> {
+			        "EntityID" : v."_id",
+			        "Difference" : if(typeOf(v.before.INTEL_ERP_Role) == Array)
+			        (v.before.INTEL_ERP_Role -- v.after.INTEL_ERP_Role) 
+			        				else null,
+			        "UpdatedAt" : item.updatedAt,
+			        "UpdatedBy" : item.changedBy.name			  
+			          }
+			)
+		)
+	}		
+}
+]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+			<ee:transform doc:name="History Simplication" doc:id="ebb73060-f5a3-40ac-9c09-ba3bd4c5b5b0">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+					<ee:set-variable variableName="RoleInsertFinal" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+---
+{
+"INTEL_ERP_Role" : vars.insertAuditHistory.INTEL_ERP_Role.Insert_History filter ($.Difference?) flatMap ((item, index) ->
+		item.Difference map ((v, k) -> {
+			"Entity_id" : item.EntityID,
+			"Difference" : v,
+			"SupplierRole_CreatedDate" : item.SupplierRole_CreatedDate,
+			"SupplierRole_CreatedBy" : item.SupplierRole_CreatedBy
+		}))
+}
+		
+
+
+
+
+]]></ee:set-variable>
+					<ee:set-variable variableName="DeleteRoleHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+---
+{
+"INTEL_ERP_Role" : vars.DeleteHistory.INTEL_ERP_Role.Update_History filter ($.Difference?) flatMap ((item, index) ->
+		item.Difference map ((v, k) -> {
+			"Entity_id" : item.EntityID,
+			"Difference" : v,
+			"UpdatedAt" : item.UpdatedAt,
+			"UpdatedBy" : item.UpdatedBy
+		}))
+}
+		
+
+
+
+
+]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+			<intel-json-logger:logger doc:name="Answer History Begin" doc:id="642f63bd-0484-4c6e-bc44-9f2a286bc19e" message="Answer History Begin" />
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="e10739fb-0c68-4843-9545-9dae64186f05" >
+					<intel-json-logger:logger doc:name="Answer History Error" doc:id="5b8bdae3-7ec2-43f9-b644-e9f2c4d9c081" message="Answer History Error"/>
+					<flow-ref doc:name="Send Mail for Exception" doc:id="e86e7766-0ff6-48ab-a4cc-a3a69c40abc4" name="eip-parse-exception-email-template"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="SupplierAcivityAnswerHistory" doc:id="ed2b545e-7843-4719-bb77-f9e69da228d5" >
+		<try doc:name="Try" doc:id="44295cb7-781a-4348-a19b-e4a51cdf35bd" >
+			<intel-json-logger:logger doc:name="SupplierAcivity Answer History Begin" doc:id="66c0379a-1df6-4a50-8594-b858a7de6935" message='#["SupplierAcivity Answer History Begin for:"  ++ vars.CurrentSupplierID]' />
+			<ee:transform doc:name="AnswerHistory Path Set" doc:id="1d19c664-1f53-4e8c-a176-d21ae5927847">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+					<ee:set-variable variableName="history_url" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+p('secure::graphite_supplier_activity_history_path') ++ vars.CurrentSupplierID ++ p('secure::graphite_supplier_activity_history_filter') ++ vars.historyFromdate ++ p('secure::graphite_history_beforedate') ++ vars.currentdatetime]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="fb71b93f-2a01-4fc8-8bb0-375b41adf2eb" >
+				<http:request method="GET" doc:name="AnswerHistoryCall" doc:id="bf2c8fd6-f070-4610-a19f-49e4105711fe" config-ref="Graphite" path='#[vars.history_url]'>
+			<http:headers><![CDATA[#[output application/json
+---
+{
+	"Authorization" : (vars.graphiteToken)
+}]]]></http:headers>
+		</http:request>
+			</until-successful>
+			<!-- <compression:decompress doc:name="Decompress" doc:id="743bd789-3feb-4c49-aa91-9cc5e9aab1eb" outputMimeType="application/json">
+				<compression:decompressor >
+					<compression:gzip-decompressor />
+				</compression:decompressor>
+			</compression:decompress> -->
+			<ee:transform doc:name="Transform Message" doc:id="39fdd715-cd29-4f6e-a69d-8af40f26a449">
+				<ee:message>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="DeleteHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+import * from dw::core::Strings
+fun formatdatetime(d: DateTime) = d as DateTime {
+	format: "yyyy-MM-dd HH:mm:ss.SSS"
+}
+---
+{
+	"INTEL_ERP_Activity" : {
+		"Update_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Activity))
+		     flatMap ((item, index) ->
+			    item.groups.ERP_Record filter ($.changeType =="update") map (v, k) -> {
+			        "EntityID" : v."_id",
+			        "Difference" : if(typeOf(v.before.INTEL_ERP_Activity) == Array)
+			        (v.before.INTEL_ERP_Activity -- v.after.INTEL_ERP_Activity) 
+			        				else null,
+			        "UpdatedAt" : item.updatedAt,
+			        "UpdatedBy" : item.changedBy.name			  
+			          }
+			)
+		)
+	}		
+}]]></ee:set-variable>
+					<ee:set-variable variableName="insertAuditHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+---
+{
+"INTEL_ERP_Activity" : {
+		"Insert_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Activity))
+		     flatMap ((item, index) ->
+			    item.groups.ERP_Record filter ($.changeType =="update") map (v, k) -> {
+			        "EntityID" : v."_id",
+			        "Difference" : if(typeOf(v.after.INTEL_ERP_Activity) == Array)
+			        (v.after.INTEL_ERP_Activity -- v.before.INTEL_ERP_Activity)
+			        				else null,
+			        "SupplierActivity_CreatedDate": (item.updatedAt),
+                    "SupplierActivity_CreatedBy": (item.changedBy.name)
+			    }
+			)
+		)
+	},
+}]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="History Simplication" doc:id="85e32069-63a2-417d-9633-bd9c7162295a">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+					<ee:set-variable variableName="insertActivityFinal" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+---
+{
+"INTEL_ERP_Activity" : vars.insertAuditHistory.INTEL_ERP_Activity.Insert_History filter ($.Difference?) flatMap ((item, index) ->
+		item.Difference map ((v, k) -> {
+			"Entity_id" : item.EntityID,
+			"Difference" : v,
+			"SupplierActivity_CreatedDate" : item.SupplierActivity_CreatedDate,
+			"SupplierActivity_CreatedBy" : item.SupplierActivity_CreatedBy
+		}))
+}
+		
+
+
+
+
+]]></ee:set-variable>
+					<ee:set-variable variableName="DeleteActivityHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+---
+{
+"INTEL_ERP_Activity" : vars.DeleteHistory.INTEL_ERP_Activity.Update_History filter ($.Difference?) flatMap ((item, index) ->
+		item.Difference map ((v, k) -> {
+			"Entity_id" : item.EntityID,
+			"Difference" : v,
+			"UpdatedAt" : item.UpdatedAt,
+			"UpdatedBy" : item.UpdatedBy
+		}))
+}
+		
+
+
+
+
+]]></ee:set-variable>
+			
+
+</ee:variables>
+		</ee:transform>
+			<intel-json-logger:logger doc:name="SupplierAcivity Answer History Begin" doc:id="8ae2f22f-d794-41cd-99f2-4ffc05a17807" message='#["SupplierAcivity Answer History ended for:" ++ vars.CurrentSupplierID]' />
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="60301abf-d488-42ff-b0a9-98f20a372066" >
+					<intel-json-logger:logger doc:name="Answer History Error" doc:id="17ddb861-76d6-4691-8c46-e5b423945b08" message='#["Answer History Error for:" ++ vars.CurrentSupplierID]'/>
+					<flow-ref doc:name="Send Mail for Exception" doc:id="0bcabc8b-1969-4792-849a-c867082e1077" name="eip-parse-exception-email-template"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="SupplierAddressUsageAnswerHistory" doc:id="1c46b10b-01d2-4408-897c-6133e6dc2485" >
+		<try doc:name="Try" doc:id="4be5eccc-9b72-4073-b95c-c1d34e74814b" >
+			<intel-json-logger:logger doc:name="SupplierAcivity Answer History Begin" doc:id="af2cb2c0-b541-4afb-936c-903367edce7f" message='#["SupplierAcivity Answer History Begin for:"  ++ vars.CurrentSupplierID]' />
+			<ee:transform doc:name="AnswerHistory Path Set" doc:id="943e53a9-5639-4458-9c97-3df2111f5f3e">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+					<ee:set-variable variableName="history_url" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+p('secure::graphite_supplier_activity_history_path') ++ vars.CurrentSupplierID ++ p('secure::graphite_supplier_address_usage_history_filter') ++ vars.historyFromdate ++ p('secure::graphite_history_beforedate') ++ vars.currentdatetime]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="12d672a9-648e-40d4-ba69-0462926dd7bc" >
+				<http:request method="GET" doc:name="AnswerHistoryCall" doc:id="8bb40487-731e-4368-87d1-26d5e66b5b47" config-ref="Graphite" path='#[vars.history_url]'>
+			<http:headers><![CDATA[#[output application/json
+---
+{
+	"Authorization" : (vars.graphiteToken)
+}]]]></http:headers>
+		</http:request>
+			</until-successful>
+			<!-- <compression:decompress doc:name="Decompress" doc:id="4f574565-9501-4671-a642-ba6aad3ce718" outputMimeType="application/json">
+				<compression:decompressor >
+					<compression:gzip-decompressor />
+				</compression:decompressor>
+			</compression:decompress> -->
+			<ee:transform doc:name="AddressUsageInser&amp;Delete Recrods" doc:id="cf9c870b-d2cb-45c4-a5c8-123da848db94">
+				<ee:message>
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="DeleteHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+import * from dw::core::Strings
+fun formatdatetime(d: DateTime) = d as DateTime {
+	format: "yyyy-MM-dd HH:mm:ss.SSS"
+}
+---
+{
+	"INTEL_ERP_Address_Usage" : {
+		"Update_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Address_Usage))
+		     flatMap ((item, index) ->
+			    item.groups.ERP_Record filter ($.changeType =="update") map (v, k) -> {
+			        "EntityID" : v."_id",
+			        "Difference" : if(typeOf(v.before.INTEL_ERP_Address_Usage) == Array)
+			        (v.before.INTEL_ERP_Address_Usage -- v.after.INTEL_ERP_Address_Usage) 
+			        				else null,
+			        "UpdatedAt" : item.updatedAt,
+			        "UpdatedBy" : item.changedBy.name			  
+			          }
+			)
+		)
+	}		
+}]]></ee:set-variable>
+					<ee:set-variable variableName="insertAuditHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+---
+{
+"INTEL_ERP_Address_Usage" : {
+		"Insert_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Address_Usage))
+		     flatMap ((item, index) ->
+			    item.groups.ERP_Record filter ($.changeType =="update") map (v, k) -> {
+			        "EntityID" : v."_id",
+			        "Difference" : if(typeOf(v.after.INTEL_ERP_Address_Usage) == Array)
+			        (v.after.INTEL_ERP_Address_Usage -- v.before.INTEL_ERP_Address_Usage)
+			        				else null,
+			        "SupplieraddressUsage_CreatedDate": (item.updatedAt),
+                    "SupplieraddressUsage_CreatedBy": (item.changedBy.name)
+			    }
+			)
+		)
+	},
+}]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<ee:transform doc:name="History Simplication" doc:id="f55dd243-7796-40cb-bd8a-e20f81844e3b">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+					<ee:set-variable variableName="insertAddressusageFinal" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+---
+{
+"INTEL_ERP_Address_Usage" : vars.insertAuditHistory.INTEL_ERP_Address_Usage.Insert_History filter ($.Difference?) flatMap ((item, index) ->
+		item.Difference map ((v, k) -> {
+			"Entity_id" : item.EntityID,
+			"Difference" : v,
+			"SupplieraddressUsage_CreatedDate" : item.SupplieraddressUsage_CreatedDate,
+			"SupplieraddressUsage_CreatedBy" : item.SupplieraddressUsage_CreatedBy
+		}))
+}
+		
+
+
+
+
+]]></ee:set-variable>
+					<ee:set-variable variableName="DeleteAddressUsageHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+---
+{
+"INTEL_ERP_Address_Usage" : vars.DeleteHistory.INTEL_ERP_Address_Usage.Update_History filter ($.Difference?) flatMap ((item, index) ->
+		item.Difference map ((v, k) -> {
+			"Entity_id" : item.EntityID,
+			"Difference" : v,
+			"UpdatedAt" : item.UpdatedAt,
+			"UpdatedBy" : item.UpdatedBy
+		}))
+}
+		
+
+
+
+
+]]></ee:set-variable>
+			
+
+
+</ee:variables>
+		</ee:transform>
+			<intel-json-logger:logger doc:name="SupplierAcivity Answer History Begin" doc:id="b5da2dcc-3a43-45fd-b465-c084cfa8c757" message='#["SupplierAcivity Answer History ended for:" ++ vars.CurrentSupplierID]' />
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="95651eaa-1e5e-41ef-83ea-fea278e90bf0" >
+					<intel-json-logger:logger doc:name="Answer History Error" doc:id="0b70dc7e-bbf8-4341-b7aa-c8b77092ac6c" message='#["Answer History Error for:" ++ vars.CurrentSupplierID]'/>
+					<flow-ref doc:name="Send Mail for Exception" doc:id="58ccac77-3541-4c2f-a935-213127ce6de6" name="eip-parse-exception-email-template"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+	</mule>

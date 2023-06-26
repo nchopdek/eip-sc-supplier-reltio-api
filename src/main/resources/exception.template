@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<style>
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 50%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+</style>
+</head>
+<body>
+
+<table>
+<th colspan="2">Exception Details</th>
+  <tr>
+    <th>Application Name</th>
+	<td>#[payload['app']]</td>
+  </tr>
+    <tr>
+    <th>Environment</th>
+	<td>#[payload['env']]</td>
+  </tr>
+    <tr>
+    <th>Time Stamp(PST)</th>
+	<td>#[payload['timeStamp']]</td>
+  </tr>
+  <tr>
+    <th>Instance</th>
+	<td>#[payload['instance']]</td>
+  </tr>
+    <tr>
+    <th>Transaction ID</th>
+	<td>#[payload['exceptionLogID']]</td>
+  </tr>
+    <tr>
+    <th>Business Data/Tags</th>
+	<td>#[payload['businessTags']]</td>
+  </tr>
+  <tr>
+    <th>Alert Triggered By</th>
+	<td>#[payload['alertTriggeredBy']]</td>
+  </tr>
+    <tr>
+    <th>API Proxy</th>
+	<td>#[payload['apiProxy']]</td>
+  </tr>
+  <tr>
+    <th>Exception Log Message</th>
+	<td>#[payload['exceptionMessage']]</td>
+  </tr>
+  <tr>
+    <th>WIKI Link</th>
+	<td>#[payload['wikilink']]</td>
+  </tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,11 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.1.xsd">
+	
+	<!-- Creates the router instance where the constructor loads the routes.json 
+		 property "routerBasePath" comes from eng.properties in src/main/resources 
+	-->
+	<bean id="router" class="com.intel.intg.router.URLRouter">
+		<property name="routerBasePath" value="${eng.router.basepath}" />
+	</bean>
+</beans>

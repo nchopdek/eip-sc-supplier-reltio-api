@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 50%;
+}
+
+td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+}
+
+tr:nth-child(even) {
+    background-color: #dddddd;
+}
+</style>
+</head>
+<body>
+
+<table>
+<th colspan="2">Exception Details</th>
+    <tr>
+    <th>Application Name</th>
+	<td>#[payload['app']]</td>
+  </tr>
+  <tr>
+    <th>API Name</th>
+	<td>#[payload['APiName']]</td>
+  </tr>
+    <tr>
+    <th>Transaction ID</th>
+	<td>#[payload['TransactionID']]</td>
+  </tr>
+    <tr>
+    <th>Environment</th>
+	<td>#[payload['env']]</td>
+  </tr>
+    <tr>
+    <th>Job Start Time</th>
+	<td>#[payload['JobStartTime']]</td>
+  </tr>
+    <tr>
+    <th>Job End Time</th>
+	<td>#[payload['JobEndTime']]</td>
+  </tr>
+    <tr>
+    <th>Job Status</th>
+	<td>#[payload['JobStatus']]</td>
+  </tr>
+</table>
+</body>
+</html>

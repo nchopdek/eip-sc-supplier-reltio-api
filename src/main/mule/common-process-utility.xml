@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd">
+		<flow name="eip-parse-payloadnull-email-template" doc:id="d3bac5d9-a4c8-4fe2-982a-2b13f76dc9ce" >
+		<ee:transform doc:name="Set All the Email Variables" doc:id="7e876472-be91-4a66-8873-5df18156e07c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+{
+	app: p('secure::supplier.master.app'),
+	APiName:vars.flowToInitiate,
+	TransactionID:vars.TransactionID,
+	env: p('secure::supplier.master.env'),
+	JobStartTime: vars.JobStartTime,
+	JobEndTime: now() as String {format: "yyyy-MM-dd'T'HH:mm:ss'PST'"},
+	JobStatus:"No Data Found in Apigee for this Job Run"
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="appName" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.app')]]></ee:set-variable>
+				<ee:set-variable variableName="envName" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.env')]]></ee:set-variable>
+				<ee:set-variable variableName="emailSubject" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.email.nullpayload.subject')]]></ee:set-variable>
+				<ee:set-variable variableName="smtpfrom" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.businessmail.fromemail')]]></ee:set-variable>
+				<ee:set-variable variableName="smtpto" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.businessmail.toemail')]]></ee:set-variable>
+				<ee:set-variable variableName="smtpcc" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.businessmail.ccemail')]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<parse-template doc:name="Parse Template" doc:id="84893596-62cc-48a0-a3f6-ff03fe084f07" location="payloadnull.template"/>
+		<email:send doc:name="SendMail" doc:id="fc169b1c-0789-4af8-9400-b1647bfd57b6" config-ref="Email_SMTP" fromAddress="#[vars.smtpfrom as String]" subject="#[vars.emailSubject as String]" toAddresses='#[vars.smtpto splitBy(",")]' ccAddresses='#[vars.smtpcc splitBy(",")]' >
+			<email:body contentType="text/html" encoding="UTF-8" />
+		</email:send>
+		<intel-json-logger:logger doc:name="Null Payload Email Sent" doc:id="75cee695-da69-441b-8af7-34ee50fd5aac" message="Null-payload Email Sent Successfully"/>
+	</flow>
+	<sub-flow name="set-common-flow-response-message" doc:id="f70195dd-fed3-4c0b-8c71-0bb5abe2137c" >
+		<ee:transform doc:name="Set Status Message" doc:id="90ddd9d7-8c5a-497d-9154-bc2039762592" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+{
+  "success": "true",
+  "code": "",
+  "data": [
+    {
+      "statusMessage": vars.flowToInitiate as String ++ "flow has intiated for further processing and generated Transaction ID:" ++ vars.TransactionID as String,
+      "statusCode": "STS-200-SUCCESS"
+    }
+  ]
+}]]></ee:set-payload>
+
+			</ee:message>
+			<ee:variables >
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="set-common-flow-error-response-message" doc:id="c2b2af52-09b6-413e-bcb6-ffaf70b852cf" >
+		<ee:transform doc:name="Transform Message" doc:id="cc05714f-da5f-4611-bd42-03b7612bcc6b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+{
+  "success": "false",
+  "code": "",
+  "data": [
+    {
+      "statusMessage": payload,
+      "statusCode": attributes.statusCode 
+    }
+  ]
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="setupLogging" doc:id="2f3ad9bc-f87f-4af6-b05e-b2feab13b636" >
+		<ee:transform doc:name="Transform Message" doc:id="534f132b-d8a4-4fe0-a1e9-d689705d2ab0" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="TransactionID" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+uuid()]]></ee:set-variable>
+				<ee:set-variable variableName="FlowPath" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.routeInfo.config.flowName ++"->"]]></ee:set-variable>
+				<ee:set-variable variableName="realm" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::aribarealm')]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="eip-parse-exception-email-template" doc:id="b3c62f3d-9007-448c-81f4-dad74cc478b7" >
+		<ee:transform doc:name="Set All the Email related Variables" doc:id="268c8a4e-bb8e-438e-94a1-0453cb41ee85" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn="everywhere"
+---
+{
+	app: p('secure::supplier.master.app'),
+	env: p('secure::supplier.master.env'),
+	timeStamp: (now() >> "PST") as String {format: "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"},
+	instance: server.host,
+	exceptionLogID: correlationId,
+	businessTags: p('secure::supplier.master.businesstags'),
+	alertTriggeredBy: p('secure::supplier.master.alerttriggeredby'),
+	apiProxy: p('secure::supplier.master.proxy'),
+	exceptionMessage: if ((vars.ReltioError != null and vars.ReltioError != "") and vars.CurrentSupplierID != null) vars.ReltioError 
+	++ ". for Connection ID -> " ++ vars.CurrentSupplierID ++ " and The SupplierID -> " ++
+	vars.ERP_Record_ID ++ "."
+	else if ((vars.ReltioError == null or vars.ReltioError == "") and vars.CurrentSupplierID != null) error.description ++ " for Connection ID -> " ++ vars.CurrentSupplierID ++ "."
+	else error.description,
+	wikilink: p('secure::supplier.master.wiki')
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="appName" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.app')]]></ee:set-variable>
+				<ee:set-variable variableName="envName" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.env')]]></ee:set-variable>
+				<ee:set-variable variableName="exceptionMessage" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+error.description]]></ee:set-variable>
+				<ee:set-variable variableName="emailSubject" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.email.exception.subject')]]></ee:set-variable>
+				<ee:set-variable variableName="smtpfrom" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.exceptionmail.fromemail')]]></ee:set-variable>
+				<ee:set-variable variableName="smtpto" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.exceptionmail.toemail')]]></ee:set-variable>
+				<ee:set-variable variableName="smtpcc" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::supplier.master.exceptionmail.ccemail')]]></ee:set-variable>
+				<ee:set-variable variableName="attachmentPayload" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+"Exception Details":{
+	app: p('secure::supplier.master.app'),
+	env: p('secure::supplier.master.env'),
+	timeStamp: (now() >> "PST") as String {format: "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"},
+	instance: server.host,
+	exceptionLogID: correlationId,
+	businessTags: p('secure::supplier.master.businesstags'),
+	alertTriggeredBy: p('secure::supplier.master.alerttriggeredby'),
+	apiProxy: p('secure::supplier.master.proxy'),
+	exceptionMessage: error.description,
+	wikilink: p('secure::supplier.master.wiki')
+}]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+		<parse-template doc:name="Parse Template" doc:id="08ec9625-1e12-4d73-9e3b-1b07f54c9787" location="exception.template"/>
+		<email:send doc:name="Send" doc:id="ede5c7af-b022-49ed-bb51-2c982719a843" toAddresses='#[vars.smtpto splitBy(",")]' config-ref="Email_SMTP" fromAddress="#[vars.smtpfrom as String]" subject="#[vars.emailSubject as String]" ccAddresses='#[vars.smtpcc splitBy(",")]'>
+			<email:body contentType="text/html" encoding="UTF-8" />
+			<email:attachments ><![CDATA[#[%dw 2.0
+output application/json encoding="UTF-8"
+var emailfileName = app.name as String ++ ".json"
+---
+{
+"$(emailfileName)" : vars.attachmentPayload
+}]]]></email:attachments>
+		</email:send>
+		<ee:transform doc:name="Reset ReltioError variable" doc:id="1c7fa9fe-0860-4cc8-9a4b-35af0c638c73" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="ReltioError" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+null]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<intel-json-logger:logger doc:name="Exception Email Sent Logger" doc:id="3ba4e875-01fb-46f9-a51a-9ccf4bee2606" message="Exception Email Sent Successfully"/>
+	
+
+
+</sub-flow>
+</mule>

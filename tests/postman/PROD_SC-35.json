@@ -1,0 +1,14 @@
+{
+  "id": "d69ffb51-fdd6-47bb-a86a-d32b0360b9f1",
+  "name": "PROD",
+  "values": [
+    {
+      "key": "host",
+      "value": "SC-35-prod.ipaas.intel.com",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_at": "2022-08-08T14:45:45",
+  "_postman_exported_using": "Postman/7.13.0"
+}

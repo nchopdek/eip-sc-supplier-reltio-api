@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:redis="http://www.mulesoft.org/schema/mule/redis"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd 
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/redis http://www.mulesoft.org/schema/mule/redis/current/mule-redis.xsd">
+
+<!-- <tls:context name="Intel_TLS_Context" doc:name="TLS Context" doc:id="2c98b134-b9d5-4cc2-9648-fb1d3c5aaa73" >
+		<tls:trust-store path="${secure::intelfulltrustjks.file}" password="${secure::intelfulltrustjks.password}" />
+</tls:context> -->
+
+<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="2f667e70-2e42-429c-b3af-04d833a6c0e3" >
+		<email:smtp-connection host="${secure::sc.smtp.host}" port="${secure::sc.smtp.port}" user="${secure::sc.smtp.username}" password="${secure::sc.smtp.password}">
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+				<email:property key="mail.smtp.ssl.trust" value="${secure::sc.smtp.host}" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<http:request-config name="Graphite" doc:name="HTTP Request configuration" doc:id="dfe45850-93d1-461b-998e-a7e53d5adbca" responseTimeout="${secure::Response_timeout}">
+		<http:request-connection protocol="HTTPS" host="${secure::graphite_host}" port="${secure::graphite_port}" connectionIdleTimeout="${secure::Connection_idle_timeout}">
+			<tls:context >
+				<tls:trust-store path="${secure::graphite_jks}" password="${secure::graphite_password}" type="jks" />
+			</tls:context>
+			<http:proxy-config >
+				<http:proxy host="${secure::graphite_proxy_host}" port="${secure::graphite_proxy_port}" />
+			</http:proxy-config>
+		</http:request-connection>
+	</http:request-config>
+	<http:request-config name="AuthReltio" doc:name="HTTP Request configuration" doc:id="73973d7a-73eb-4996-a7de-b255f39b67c1" responseTimeout="${secure::Response_timeout}">
+		<http:request-connection protocol="HTTPS" host="${secure::reltio_auth_host}" port="${secure::reltio_port}" connectionIdleTimeout="${secure::Connection_idle_timeout}">
+			<tls:context >
+				<tls:trust-store path="${secure::reltio_jks}" password="${secure::reltio_password}" type="jks"/>
+			</tls:context>
+			<http:proxy-config >
+				<http:proxy host="${secure::reltio_proxy_host}" port="${secure::reltio_proxy_port}" />
+			</http:proxy-config>
+		</http:request-connection>
+	</http:request-config>
+	<http:request-config name="ReltioAPI" doc:name="HTTP Request configuration" doc:id="d6b2cec5-9090-4a6a-a772-e1503afc1d6e" responseTimeout="${secure::Response_timeout}">
+		<http:request-connection protocol="HTTPS" host="${secure::reltio_host}" port="${secure::reltio_port}" connectionIdleTimeout="${secure::Connection_idle_timeout}">
+			<tls:context >
+				<tls:trust-store path="${secure::reltio_jks}" password="${secure::reltio_password}" type="jks"/>
+			</tls:context>
+			<http:proxy-config >
+				<http:proxy host="${secure::reltio_proxy_host}" port="${secure::reltio_proxy_port}" />
+			</http:proxy-config>
+		</http:request-connection>
+	</http:request-config>
+</mule>

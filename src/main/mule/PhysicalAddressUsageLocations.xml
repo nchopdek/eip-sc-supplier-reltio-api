@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:redis="http://www.mulesoft.org/schema/mule/redis"
+	xmlns:compression="http://www.mulesoft.org/schema/mule/compression" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/compression http://www.mulesoft.org/schema/mule/compression/current/mule-compression.xsd
+http://www.mulesoft.org/schema/mule/redis http://www.mulesoft.org/schema/mule/redis/current/mule-redis.xsd">
+	<flow name="SupplierAddressUsageFlow" doc:id="5129b050-e1af-4351-9bd4-4b5fa9f55d98" >
+		<intel-json-logger:logger doc:name="INFO: Supplier PhysicalAddress UsageLocations" doc:id="23f4e2f3-4992-4ed3-bb83-c52160101dba" message='"Supplier PhysicalAddress UsageLocations flow initiated"'/>
+		<ee:transform doc:name="Transform Message" doc:id="015d7c2b-4524-4109-9781-cc36ea521e47">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="SupplierID" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+[attributes.queryParams.SupplierID]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="OAuthToken" doc:id="f753f48f-d43f-446f-b0ed-380ac20cbab0" name="OAuthToken"/>
+		<intel-json-logger:logger doc:name="INFO: Supplier PhysicalAddress UsageLocations flow initiated" doc:id="d488badb-5115-41ba-9433-39ddc17de671" message='#["Recieved Auth Token " ++ "${secure::reltio_host}"]'/>
+		<os:retrieve doc:name="Retrieve" doc:id="ebbc1a08-079e-45e6-8c82-9830bf20c2ad" key="AddresUsagelastrunDate" objectStore="Object_store">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<intel-json-logger:logger doc:name="Retrive Date" doc:id="98fdd18e-7199-4104-b980-61ae48b35c2a" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="3227d0da-d20a-4ce6-ba1b-cda761eae549" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="currentdatetime" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+(now() >> "UTC") as String {format: "yyyy-MM-dd'T'HH:mm:ss.SSS"} as DateTime]]></ee:set-variable>
+				<ee:set-variable variableName="date" ><![CDATA[%dw 2.0
+output application/json encoding= "UTF-8"
+---
+payload]]></ee:set-variable>
+				<ee:set-variable variableName="module" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+"INTEL_ERP_Address"]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="e06388a9-54d8-43e0-985d-e2db7d3d96f4" >
+			<when expression="#[sizeOf(vars.SupplierID) &gt; 0]">
+				<foreach doc:name="For Each" doc:id="f05f0db3-c797-4a78-95e3-72bec45370e6" collection="#[vars.SupplierID]">
+					<try doc:name="Try" doc:id="28403998-769e-40b7-b227-a049eda8f469" >
+						<intel-json-logger:logger doc:name="SupplierID" doc:id="a5d2a079-341b-47b2-a756-2b4097f0d006" message="#[payload]"/>
+						<ee:transform doc:name="Transform Message" doc:id="069e95f3-3890-48b3-b1c1-2b2ddc9fef9e" >
+							<ee:message >
+							</ee:message>
+							<ee:variables >
+								<ee:set-variable variableName="historyFromdate" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+vars.date]]></ee:set-variable>
+								<ee:set-variable variableName="CurrentSupplierID" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload]]></ee:set-variable>
+							
+</ee:variables>
+						</ee:transform>
+						<flow-ref doc:name="SupplierAddressUsageAnswerHistory" doc:id="e5629d6c-6fcc-4dfe-8fc6-f0957a7d723b" name="SupplierAddressUsageAnswerHistory"/>
+						<choice doc:name="Choice" doc:id="7dc67cd2-25a5-4fd0-8285-8c9fb1f74d38" >
+							<when expression="#[(vars.insertAddressusageFinal != null) and (vars.DeleteAddressUsageHistory != null)]">
+								<intel-json-logger:logger doc:name="ERP_Record Eligibility logger" doc:id="6d2c659b-22ad-4682-a693-0e593e945efa" message='"ERP_Record is eligible for processing and ERP Record ID"'/>
+								<ee:transform doc:name="AuditMerge" doc:id="1390eed6-dd98-4796-80a9-688ef1b35ec4">
+													<ee:message>
+													</ee:message>
+													<ee:variables >
+										<ee:set-variable variableName="DeleteMerge" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8",skipNullOn = "everywhere"
+---
+vars.DeleteAddressUsageHistory.INTEL_ERP_Address_Usage]]></ee:set-variable>
+										<ee:set-variable variableName="auditMerge" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn = "everywhere"
+---
+vars.insertAddressusageFinal.INTEL_ERP_Address_Usage]]></ee:set-variable>
+													
+
+</ee:variables>
+												</ee:transform>
+								<flow-ref doc:name="get_profile" doc:id="09fe670a-87dd-4c5d-9b00-506a9ec87da2" name="get_profile"/>
+								<ee:transform doc:name="Transform Message" doc:id="e35e82ce-042b-4476-a43a-4e2dab52c6c0">
+									<ee:message>
+									</ee:message>
+									<ee:variables >
+										<ee:set-variable variableName="getProfile" ><![CDATA[%dw 2.0
+output application/Json encoding="UTF-8"
+---
+vars.ConnectionData]]></ee:set-variable>
+									</ee:variables>
+								</ee:transform>
+								<flow-ref doc:name="SupplierAddressUsageInsertSub_Flow" doc:id="7290edd2-8cd8-4817-b6b8-aa0fc6f30b78" name="SupplierAddressUsageInsertSub_Flow"/>
+								<flow-ref doc:name="SupplierAddressUsageDeleteSub_Flow" doc:id="9e824cd8-28a9-46ed-93f7-ad8db8f912b2" name="SupplierAddressUsageDeleteSub_Flow" />
+								<ee:transform doc:name="Transform Message" doc:id="f1906a69-5547-429c-bc5a-54aa0d5ac7b6">
+									<ee:message>
+									</ee:message>
+									<ee:variables>
+										<ee:set-variable variableName="AcknowledgementERPIDs" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+(vars.DeleteMerge ++ vars.auditMerge distinctBy $.Entity_id).*Entity_id]]></ee:set-variable>
+									</ee:variables>
+								</ee:transform>
+								<flow-ref doc:name="changes_acknowledge" doc:id="a2aee7aa-7fe3-4da7-b0b6-97faf01dd435" name="changes_acknowledge"/>
+								<intel-json-logger:logger doc:name="ERP_Record Eligibility logger Ended" doc:id="e2af8619-757e-4dfc-be54-8d33c785a23b" message='"ERP_Record is eligible for processing and ERP Record ID Ended"'/>
+							
+</when>
+							<otherwise >
+								<intel-json-logger:logger doc:name="No ERP Record IDs" doc:id="1ebdcc6a-7882-408b-82cb-8c6a72bd7b81" message='"No ERP Record IDs are changed"'/>
+								<flow-ref doc:name="eip-parse-payloadnull-email-template" doc:id="6cf6babe-964e-48c9-850d-681bdd329826" name="eip-parse-payloadnull-email-template"/>
+							</otherwise>
+						</choice>
+						<error-handler >
+							<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="7dbcd62c-a901-4c7e-a7d9-15b93d122137" >
+								<intel-json-logger:logger doc:name="Logger" doc:id="9e374049-1899-4b1f-8946-71b72342b056" message='#["Supplier ID is failed in History:" ++ vars.CurrentSupplierID]'/>
+								<flow-ref doc:name="eip-parse-exception-email-template" doc:id="2e7b6c18-6de8-4ac4-b799-ed949e2c8954" name="eip-parse-exception-email-template"/>
+							</on-error-continue>
+						</error-handler>
+					</try>
+				</foreach>
+			</when>
+			<otherwise >
+				<intel-json-logger:logger doc:name="No Supplier IDs " doc:id="627c0f34-d5f5-4d65-b4a5-ab5657c31c0a" message='"No Supplier IDs are Changed for this Run"'/>
+				<flow-ref doc:name="eip-parse-payloadnull-email-template" doc:id="a120372f-4417-44f7-a88e-c5ffcda836f0" name="eip-parse-payloadnull-email-template"/>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="c2a52027-f2e4-4998-b650-fa9697ae10d5" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="historyDate" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+(now() >> "UTC") as String {format: "yyyy-MM-dd'T'HH:mm:ss.SSS"} as DateTime]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<os:store doc:name="Store" doc:id="993d1f4c-afcb-4ac7-9114-ab14ebcf4a06" key="AddresUsagelastrunDate" objectStore="Object_store">
+			<os:value ><![CDATA[#[vars.historyDate]]]></os:value>
+		</os:store>
+		<ee:transform doc:name="Transform Message" doc:id="96cb8fdd-1c31-4c36-b432-be03703575a9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.SupplierID]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<intel-json-logger:logger doc:name="SupplierAddressUsage FlowEnded" doc:id="74ce1217-b8b0-4322-b5f6-016001022263" message="SupplierAddressUsage FlowEnded"/>
+	</flow>
+		
+	<sub-flow name="post_AddressUsageSupplierentities" doc:id="87e82162-8788-409f-8a10-bbf8d1e0e446" >
+		<intel-json-logger:logger doc:name="Inside post_Supplierentities Application" doc:id="16493516-6b83-4f59-96eb-5ce18f65dc3b" message="Inside post_Supplierentities Application" />
+		<ee:transform doc:name="ReltioSyncPath" doc:id="5d6db3bc-1a44-45c4-a554-98f540d5189d" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="Reltioentitiespath" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::reltio_post_path') ++ p('secure::reltio_crosswalk_sync_path') ++ (if (vars.cummulativeInsert != null) (vars.cummulativeInsert[0].Entity_id) else (vars.cummulativeDelete.Entity_id)) ++ "?type=graphiteConnect&options=ovOnly&select=uri,attributes.SupplierPhysicalAddresses"]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="f2688be4-b9a8-4e4d-a105-524ec8f21e80" >
+			<http:request method="GET" doc:name="SupplierSync2Reltio" doc:id="70d154f4-3dbb-43ed-a560-55575e63ac43" config-ref="ReltioAPI" path="#[vars.Reltioentitiespath]">
+			<http:body><![CDATA[#[vars.supplierData]]]></http:body>
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="BusinessOrgPartyID" doc:id="5901e9e6-de90-4c4f-bdb8-2e684983ecaa">
+			<ee:message>
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+flatten(payload.object.attributes.SupplierPhysicalAddresses).value map ((item, index) -> item filterObject ((value, key, index) -> key contains "SupplierPhysicalAddressUsageLocations") )]]></ee:set-payload>
+
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="Uri" ><![CDATA[%dw 2.0
+import * from dw::core::Strings
+output application/json encoding= "UTF-8"
+---
+substringBefore((flatten(flatten(payload.object.attributes.SupplierPhysicalAddresses).value.PhysicalAddressIdentifier[0]).uri joinBy ""),"/PhysicalAddressIdentifier")]]></ee:set-variable>
+				<ee:set-variable variableName="BusinessOrgPartyID" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.object.attributes.SupplierPhysicalAddresses[0].value[0]]]></ee:set-variable>
+				<ee:set-variable variableName="deleteUri" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+import * from dw::core::Strings
+---
+payload.object.uri joinBy ""]]></ee:set-variable>
+			
+
+</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="RetioSync payload" doc:id="57fed700-6ed1-4613-be03-41caf0289135">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+((flatten(payload.SupplierPhysicalAddressUsageLocations)) filter ($.label contains vars.Label))[0]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+		<choice doc:name="Choice" doc:id="8ac3f6c5-2211-47e2-bd35-dd3d7f1b3268" >
+			<when expression='#[(vars.diffrence != "DeleteSupplierAddressUsage")]'>
+				<ee:transform doc:name="PostActivityEntities" doc:id="ad8e260b-1d0e-478b-a34a-2cc6c49820cd">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+						<ee:set-variable variableName="PostActivityEntities" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.cummulativeInsert map ((item,index) ->
+{
+	"type": "INSERT_ATTRIBUTE",
+	"uri": vars.Uri ++ "/SupplierPhysicalAddressUsageLocations",
+	"newValue": [
+        {
+          "value": {
+            "AddressLocationTypeCode": [
+              {
+                "value": vars.Address
+              }
+            ],
+			"AddressUsageTypeCode": [
+              {
+                "value": vars.Label
+              }
+            ],
+            "EffectiveStartDateTime": [
+              {
+                "value": item.SupplieraddressUsage_CreatedDate
+              }
+            ],
+            "EffectiveEndDateTime": [
+              {
+                "value": "2099-12-31T00:00:00.000Z"
+              }
+            ],
+			"ContactAllowedIndicator": [
+              {
+                "value": "FALSE"
+              }
+            ],
+            "CreateAgentIdentifier": [
+              {
+                "value": item.SupplieraddressUsage_CreatedBy
+              }
+            ],
+            "CreateDateTime": [
+              {
+                "value": item.SupplieraddressUsage_CreatedDate
+              }
+            ],
+            "ChangeAgentIdentifier": [
+              {
+                "value": item.SupplieraddressUsage_CreatedBy
+              }
+            ],
+            "ChangeDateTime": [
+              {
+                "value": item.SupplieraddressUsage_CreatedDate
+              }
+            ]
+          }
+        }
+      ],
+      "crosswalk": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeInsert.Entity_id
+      }
+})]]></ee:set-variable>
+			
+
+</ee:variables>
+		</ee:transform>
+				<ee:transform doc:name="PostEntitypath" doc:id="d9996390-cd6a-41cb-a19c-30cf80a6a422">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="UpdateEntitiespath"><![CDATA[%dw 2.0
+import * from dw::core::Strings
+output application/java
+---
+"/scds/operate/v1/supplier-" ++ substringBefore(vars.Uri,"/attributes") ++ "/_update"]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<flow-ref doc:name="PostAddressUsageEntitiesTargetEndpoint" doc:id="ce993516-c28d-4c3f-b41a-f9da364fc793" name="PostAddressUsageEntitiesTargetEndpoint" />
+			
+</when>
+			<when expression='#[(vars.diffrence == "DeleteSupplierAddressUsage") and !isEmpty(payload)]'>
+				<ee:transform doc:name="Transform Message" doc:id="4f876700-3c35-45dd-94c7-0cd87ac4ba57">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+[payload]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<ee:transform doc:name="Deletemapping" doc:id="4a50e9a6-f202-4f4c-9e86-fa9883e8dda8">
+			<ee:message />
+			<ee:variables>
+				<ee:set-variable variableName="createAgent"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.value map ((item, index) ->
+{
+"type": "UPDATE_ATTRIBUTE",
+"uri":item.ChangeAgentIdentifier.uri joinBy "",
+"newValue": [{
+    "value": vars.cummulativeDelete.UpdatedBy
+}],
+"crosswalk": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeDelete.Entity_id
+      }
+})]]></ee:set-variable>
+				<ee:set-variable variableName="effectivedate"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.value map ((item, index) ->
+{
+"type": "UPDATE_ATTRIBUTE",
+"uri":item.EffectiveEndDateTime.uri joinBy "",
+"newValue": [{
+    "value": vars.cummulativeDelete.UpdatedAt
+}],
+"crosswalk": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeDelete.Entity_id
+      }
+})]]></ee:set-variable>
+						<ee:set-variable variableName="ChangeDateTime"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.value map ((item, index) ->
+{
+"type": "UPDATE_ATTRIBUTE",
+"uri":item.ChangeDateTime.uri joinBy "",
+"newValue": [{
+    "value": vars.cummulativeDelete.UpdatedAt
+}],
+"crosswalk": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeDelete.Entity_id
+      }
+})]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<ee:transform doc:name="Deletepayload" doc:id="ed876e2b-37ed-4f9d-adbe-b703433bf12b">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+						<ee:set-variable variableName="PostActivityEntities" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.effectivedate ++ vars.createAgent ++ vars.ChangeDateTime]]></ee:set-variable>
+						<ee:set-variable variableName="UpdateEntitiespath" ><![CDATA[%dw 2.0
+output application/java
+---
+"/scds/operate/v1/supplier-" ++ vars.deleteUri ++ "/_update"]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+				<flow-ref doc:name="PostAddressUsageEntitiesTargetEndpoint" doc:id="4f66c297-90f7-46b6-a4f5-84da9abab938" name="PostAddressUsageEntitiesTargetEndpoint"/>
+			
+
+</when>
+			<otherwise>
+				<intel-json-logger:logger doc:name="Logger" doc:id="b221a099-8c38-4ed2-8983-67070e3b9397" message='"payloadnull"'/>
+			</otherwise>
+		</choice>
+		<intel-json-logger:logger doc:name="End post_Supplierentities Application" doc:id="c59fe49e-0553-493a-9a49-4e06fa83cd01" message="End post_Supplierentities Application" />
+	
+</sub-flow>
+	<sub-flow name="SupplierAddressUsageInsertSub_Flow" doc:id="160a5625-21c3-470d-873e-7874234add05" >
+		<try doc:name="Try" doc:id="dd6d9ac8-21f7-44c8-bca7-7fba853add62" >
+			<foreach collection="#[vars.auditMerge]">
+				<intel-json-logger:logger doc:name="SupplierAddressUsagensertSub_FlowStarted" doc:id="74856c80-6636-4f76-be40-e0d3c0567458" message='#["Supplier Address usage insert Started for ERP Record ID:" ++ payload.Entity_id ++ " and Activity is:"  ++ payload.Difference]' />
+				<ee:transform doc:name="Transform Message" doc:id="17ad294b-4b5c-45d6-91b4-e20cd4125d4f">
+														<ee:message>
+														</ee:message>
+														<ee:variables>
+						<ee:set-variable variableName="diffrence" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+"InsertSupplierAddressUsage"]]></ee:set-variable>
+						<ee:set-variable variableName="cummulativeInsert" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn = "everywhere"
+---
+[payload]
+    ]]></ee:set-variable>
+						<ee:set-variable variableName="erpRecordEntityID" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.Entity_id]]></ee:set-variable>
+						<ee:set-variable variableName="Label" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.Difference]]></ee:set-variable>
+						<ee:set-variable variableName="Address" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+var ERPRecord = payload.Entity_id
+---
+(payload.ERP_Record filter ($."_id" == ERPRecord)).INTEL_ERP_Address.Address.Address_1 joinBy ""]]></ee:set-variable>
+														
+
+
+</ee:variables>
+													</ee:transform>
+				<flow-ref doc:name="post_AddressUsageSupplierentities" doc:id="17c2845c-db1d-48fa-aa50-7cc955a7836a" name="post_AddressUsageSupplierentities" />
+				<intel-json-logger:logger doc:name="SupplierAddress UsageInsertSub_FlowEnded" doc:id="68f0033a-57cc-4e7c-bdc3-0cafaf0dd58b" message='#["Supplier Address usage Insert Successfull for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+			</foreach>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="3942314f-a3b9-46f5-83ee-559098892f2f" >
+					<intel-json-logger:logger doc:name="SupplierActivityInsertSub_FlowFailed" doc:id="10665c9f-1232-4582-9c0c-2187e762a0f7" message='#["Supplier Address usage Insert Failed for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+					<flow-ref doc:name="eip-parse-exception-email-template" doc:id="cc292351-240a-4b45-b386-8c1aeca3ad18" name="eip-parse-exception-email-template"/>
+					<flow-ref doc:name="changes_acknowledge" doc:id="962abd33-a07e-4ded-856c-5d0b895e6f2f" name="changes_acknowledge"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="SupplierAddressUsageDeleteSub_Flow" doc:id="87e36798-d5bf-41c5-858d-b4fb6214f48d" >
+		<try doc:name="Try" doc:id="245fb63e-da27-4010-a013-1f9533c693a6" >
+			<foreach doc:name="For Each" doc:id="56c6d49e-28e5-4eba-8e9a-74d306efbca8" collection="#[vars.DeleteMerge]">
+													<intel-json-logger:logger doc:name="SupplierAddressUsage Delete Started" doc:id="3a8307e9-5ff6-4bab-b5c7-c0abac31fbd9" message='#["Supplier Address usage Delete Started for ERP Record ID:" ++ payload.Entity_id ++ " and Activity is:"  ++ payload.Difference]' />
+									<ee:transform doc:name="Transform Message" doc:id="65360341-e2e9-4b07-9443-6544d4396237">
+														<ee:message>
+														</ee:message>
+														<ee:variables>
+															<ee:set-variable variableName="Label"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.Difference]]></ee:set-variable>
+						<ee:set-variable variableName="diffrence" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+"DeleteSupplierAddressUsage"]]></ee:set-variable>
+						<ee:set-variable variableName="cummulativeDelete" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload]]></ee:set-variable>
+						<ee:set-variable variableName="erpRecordEntityID" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+payload.Entity_id]]></ee:set-variable>
+														
+
+</ee:variables>
+													</ee:transform>
+													<flow-ref doc:name="post_AddressUsageSupplierentities" doc:id="fabfc711-ae42-46e6-a4a7-d46c5e0b503d" name="post_AddressUsageSupplierentities" />
+				<intel-json-logger:logger doc:name="Supplier Address Usage Ended_Flow" doc:id="e0400cda-0c7e-455e-b0eb-bbc941517b07" message='#["Supplier Address usage Delete Successfull for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+												
+</foreach>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="f1331cd4-4deb-470d-885e-fb1e884e5aec" >
+					<intel-json-logger:logger doc:name="SupplierAddressUsage InsertSub_FlowFailed" doc:id="213264bb-fa14-4600-b817-60b4c4ad21f3" message='#["Supplier Address usage Delete Failed for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+					<flow-ref doc:name="eip-parse-exception-email-template" doc:id="e8d8cf1a-604d-4c3d-87c0-935f59c5cde4" name="eip-parse-exception-email-template"/>
+					<flow-ref doc:name="changes_acknowledge" doc:id="da837775-75d3-4f97-976d-a7b6ded049df" name="changes_acknowledge"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+
+	</sub-flow>
+		<sub-flow name="PostAddressUsageEntitiesTargetEndpoint" doc:id="e376b740-49e7-43b8-9fcb-8e3b38591f11" >
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="cbad0812-e8c4-4153-b1eb-02e980f97495" >
+			<http:request method="POST" doc:name="UpdateEntities" doc:id="922bc50d-2f05-4ed8-8ee9-bd0bda06d035" config-ref="ReltioAPI" path="#[vars.UpdateEntitiespath]">
+			<http:body><![CDATA[#[vars.PostActivityEntities]]]></http:body>
+					<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="Transform Message" doc:id="7284facc-440d-4176-900b-38a5fd798ae1" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="IntelErpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.attributes.SupplierActivities.label[0]]]></ee:set-variable>
+				<ee:set-variable variableName="ReltioError" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.errors.errorDetailMessage[0] default ""]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	</sub-flow>
+</mule>

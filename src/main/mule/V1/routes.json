@@ -1,0 +1,34 @@
+[
+  {
+    "method": "GET",
+    "route": "/v1/supplierData",
+    "flowName": "GET:/v1/supplierData",
+    "options": {
+      "my_key": "my_value"
+    }
+  },
+  {
+    "method": "GET",
+    "route": "/v1/Objectstore",
+    "flowName": "GET:/v1/Objectstore",
+    "options": {
+      "my_key": "my_value"
+    }
+  },
+  {
+    "method": "GET",
+    "route": "/v1/supplierRole",
+    "flowName": "GET:/v1/supplierRole",
+    "options": {
+      "my_key": "my_value"
+    }
+  },
+  {
+    "method": "GET",
+    "route": "/v1/supplierAddressUsage",
+    "flowName": "GET:/v1/supplierAddressUsage",
+    "options": {
+      "my_key": "my_value"
+    }
+  }
+]

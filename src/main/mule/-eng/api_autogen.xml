@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd">
+<sub-flow name="GET:\v1\supplierData_route" doc:id="81c0e776-1290-49ba-b5e4-67bc37fc20f7" >
+	<flow-ref doc:name="GET:\v1\supplierData" doc:id="35c08ee0-ebde-4aa9-b153-29e23fb812da" name="SupplierActivityFlow"/>
+</sub-flow>
+<sub-flow name="GET:\v1\supplierRole_route" doc:id="da38de35-db81-4976-9cfe-7bfed156e3e4" >
+<flow-ref doc:name="GET:\v1\supplierRole" doc:id="3ca5dc1f-2580-44d7-8dc5-63dc240ff733" name="SupplierRole" />
+</sub-flow>
+<sub-flow name="GET:\v1\Objectstore_route" doc:id="d95503b7-72ed-4961-ab71-426544a012ef" >
+<flow-ref doc:name="GET:\v1\ObjectstoreFlow" doc:id="bf4fcb22-f566-4ae1-8693-2e3041ba4e18" name="ObjectstoreFlow" />
+</sub-flow>
+<sub-flow name="GET:\v1\supplierAddressUsage_route" doc:id="c9f39f05-0b1d-4493-8b98-96c68b14be85" >
+<flow-ref doc:name="GET:\v1\supplierAddressUsage" doc:id="da927f06-67e1-4ee3-9014-c2cb6bc0c9a8" name="SupplierAddressUsageFlow" />
+</sub-flow>
+</mule>

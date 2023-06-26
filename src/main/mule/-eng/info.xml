@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger" 
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" 
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+		http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd">
+	<flow name="GET:\v1\platform\info_route" doc:id="1b0795ec-641c-444c-9bce-055c19fba2d7">
+		<intel-json-logger:logger doc:name="Begin \platform\info" doc:id="5fec8ad4-abf4-40c6-9fed-f464e5ec1f9d" message="Begin \platform\info"/>
+		<ee:transform doc:name="Build All Info Object" doc:id="cf781c1a-5618-4d60-b55e-f4113e4aadc3">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+import * from dw::System
+import * from dw::core::Objects
+output application/json encoding="UTF-8"
+---
+{
+    "app": {
+        "name": app.name,
+        "encoding": app.encoding,
+        "workdir": app.workdir,
+    },
+    "mule": {
+        "version": mule.version,
+        "home": mule.home,
+        "nodeid": mule.nodeId,
+        "clusterid": mule.clusterId
+    },
+    "java": {
+        "vendor": "${java.vendor}",
+        "runtime": "${java.runtime.name}",
+        "version": "${java.version}"
+    },
+    "os": {
+        "name": "${os.name}",
+        "arch": "${os.arch}",
+        "version": "${os.version}"
+    },
+    "user": {
+        "name": "${user.name}",
+        "home": "${user.home}",
+        "dir": "${user.dir}"
+    },
+    "routes": app.registry.router.routes,
+    "server": {
+    	"host": server.host,
+    	"ip": server.ip,
+    	"datetime": server.dateTime,
+    	"properties": server.systemProperties
+    },
+   	"stats": {
+		"totals": {
+			"event_count": mule.muleContext.stats.flowConstructStats["application totals"].receivedEvents,
+			"errors": {
+				"fatal": mule.muleContext.stats.flowConstructStats["application totals"].fatalError,
+				"execution": mule.muleContext.stats.flowConstructStats["application totals"].executionError
+			}
+		}
+	},
+	"flows": mule.muleContext.stats.flowConstructStats mapObject ((key,value) -> (
+		(key.name):
+		{
+			"name": key.name,
+			"event_count": key.receivedEvents,
+			"timings": {
+				"interval_time": key.flowStatistics.intervalTime,
+				"current_interval_start_time": key.flowStatistics.currentIntervalStartTime,
+				"min_execution": key.flowStatistics.minExecutionTime,
+				"max_execution": key.flowStatistics.maxExecutionTime,
+				"average_execution": key.flowStatistics.averageExecutionTime,
+				"total_execution": key.flowStatistics.totalExecTime
+			},
+			"errors": {
+				"fatal": key.fatalError,
+				"execution": key.executionError
+			}
+		}
+	))
+
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables />
+		</ee:transform>
+		 
+		<choice doc:name="Choice" doc:id="9b1ce05a-b982-48a1-a74c-2c01ec174e87" >
+			<when expression="#[attributes.queryParams.show != null]">
+				<ee:transform doc:name="Return Info Subset" doc:id="8dfb1fbe-f691-456e-bba1-6dc5d59b5463" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload[lower(attributes.queryParams.show)]
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+		</choice>
+		<intel-json-logger:logger doc:name="End \platform\info" doc:id="5fab31f9-cccf-4917-a718-c83726630e8d" message="End \platform\info"/>
+	</flow>
+</mule>

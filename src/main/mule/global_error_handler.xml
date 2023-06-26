@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd">
+	
+	<!-- CONFIGURATION
+	This is the default Global exception handler. Any runtime exceptions not handled by your code will be handled by this generic handler. 
+	-->
+	<configuration doc:name="Configuration" doc:id="f11732aa-d0c8-4268-91b4-8f846d220fb2" defaultErrorHandler-ref="globalErrorHandler" />	
+	
+	<error-handler name="globalErrorHandler" doc:id="e14f06f9-a0e4-4d4d-a609-85bff3af36ca" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="dcb8d477-7979-4b06-9b7a-f9652c73ddf1" type="ANY">
+			<ee:transform doc:name="Error Response" doc:id="b4ee963e-87c6-4c34-9928-ad4dfd6e8ed0">
+				<ee:message>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="errorResponse"><![CDATA[output application/json encoding="UTF-8"
+---
+{
+	"status" : 400,
+	"reason": "error",
+	"body" : {
+		"success": "false",
+		"code": error.errorType.identifier,
+		"data": [
+			error.description
+		]
+	}
+}]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+			<flow-ref doc:name="Log the Exception" doc:id="982a2a67-6784-4ffd-990d-d2e36f98b968" name="app_config_response_Flow"/>
+		</on-error-propagate>
+	</error-handler>
+	<sub-flow name="app_config_response_Flow" doc:id="0ec6d271-c14b-472b-9d29-5efa349625ba" >
+		<intel-json-logger:logger doc:name="Exception Logger" doc:id="18407036-29ef-4e2b-8f71-bb3598cc148c" priority="ERROR" tracePoint="EXCEPTION" message='#["GLOBAL ERROR HANDLER: " ++ error.description]' />
+	</sub-flow>	
+</mule>

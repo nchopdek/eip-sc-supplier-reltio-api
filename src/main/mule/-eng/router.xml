@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" 
+	xmlns:spring="http://www.mulesoft.org/schema/mule/spring"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" 
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+					http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+					http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+					http://www.mulesoft.org/schema/mule/spring http://www.mulesoft.org/schema/mule/spring/current/mule-spring.xsd
+					http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd">
+	<configuration-properties file="-eng/eng.properties" />
+
+	
+	<flow name="routerFlow" doc:id="4108e83e-9a3d-4f12-9169-6af88700bbca">
+		<http:listener doc:id="bbe098dd-9a95-40c1-9d49-7e642daae969"
+			doc:name="eng.router.listener" config-ref="HTTPS_EIP_Listener_config"
+			path="${eng.router.basepath}/{api_version}/*" >
+			<http:response statusCode="#[vars.httpStatus default 200]" reasonPhrase='#[vars.httpReason default ""]'>
+				<http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+			</http:response>
+			<http:error-response statusCode='#[if (vars.errorResponse != null and vars.errorResponse.status != null) vars.errorResponse.status else "400"]' reasonPhrase='#[if (vars.errorResponse != null and vars.errorResponse.reason != null) vars.errorResponse.reason else ""]' >
+				<http:body ><![CDATA[#[output application/json encoding="UTF-8"
+--- 
+if (vars.errorResponse == null) write(error.description,"text/plain") else vars.errorResponse.body]]]></http:body>
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Credentials": "true",
+	"Access-Control-Allow-Methods": "GET, POST, HEAD, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH",
+	"Access-Control-Allow-Headers": "*"
+}]]]></http:headers>
+			</http:error-response>
+		</http:listener>
+		<set-variable
+			value="#[Java::invoke('com.intel.intg.router.URLRouter', 'getRoute(HttpRequestAttributes)', app.registry.router, {&quot;arg0&quot;: attributes})]"
+			doc:name="routeInfo" doc:id="8db22dde-d3a1-425c-a50d-776502b1c44d"
+			variableName="routeInfo" mimeType="application/java" encoding="UTF-8"/>
+		<choice doc:name="CORS Pre-flight?" doc:id="9c4b30af-2183-41f0-b726-a039bbabd67c" >
+			<when expression='#[upper(attributes.method) == "OPTIONS"]'>
+				<intel-json-logger:logger doc:name="OPTIONS Pre-flight" doc:id="2cb219de-c1e9-4961-8d4c-6f035dbd350e"   tracePoint="START" message="OPTIONS pre-flight"/>
+			</when>
+			<otherwise >
+				<choice doc:name="Valid Route ?" doc:id="56ee949b-47c0-46ae-9b6e-b187e5375ec2">
+			<when expression="#[sizeOf(vars.routeInfo.routeFlow) &gt; 0]">
+						<intel-json-logger:logger doc:name="INFO: Routing to ..." doc:id="6d7de8c5-2649-4d25-b191-524d6add6c49"   message='#["Routing to: " ++ vars.routeInfo.config.flowName ++ (if (sizeOf(vars.routeInfo.routeVars) &gt; 0) " with " ++ joinBy(vars.routeInfo.routeVars pluck (value, key) -&gt; key ++ "=" ++ value,", ") else "")  ++ if (! isEmpty(attributes.queryString)) " ?" ++ attributes.queryString else ""]' tracePoint="START"/>
+						<set-variable value="#[attributes]" doc:name="Preserve attributes" doc:id="16519865-282d-4c14-a937-ea99d5896b94" variableName="inboundProperties" />
+						<flow-ref doc:name="Call impl flow" doc:id="0844cb33-886c-4101-8ffd-792533032be7" name="#[vars.routeInfo.routeFlow]" />
+						<intel-json-logger:logger doc:name="INFO: Integ Complete" doc:id="f8d24b49-3b41-4de2-9d5d-fe37c72bb1e1"   tracePoint="END" message="Integration completed"/>
+			</when>
+			<otherwise>
+				<set-variable value="404" doc:name="httpStatus 404" doc:id="3959c7df-b47f-46a2-a50f-3f3d628a0bf4" variableName="httpStatus" />
+				<set-payload value='#["No defined routes match " ++ vars.routeInfo.requestedRoute]' doc:name="Set Payload" doc:id="beb12f7e-bae6-4eaa-bc04-7989c8eb184e" mimeType="application/json" encoding="UTF-8"/>
+						<intel-json-logger:logger doc:name="WARN: No matching route" doc:id="6ae29e7e-8263-446b-8664-816ac8b1db79"   priority="WARN" message='#[payload]' tracePoint="FLOW"/>
+						<intel-json-logger:logger doc:name="DEBUG: Available routes" doc:id="9214d042-dcf1-43ba-b51f-27f86ec60e51" tracePoint="END" message="#[%dw 2.0
+output application/json encoding='UTF-8'
+var routes = Java::invoke('com.intel.intg.router.URLRouter', 'validRoutes()', app.registry.router, {})
+---
+&quot;Defined Routes:\n&quot; ++ (routes joinBy(&quot;\n&quot;))]"   priority="DEBUG"/>
+			</otherwise>
+		</choice>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="3f3ff7ec-9365-4475-aef2-c3b97273679b">
+					<ee:message>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="outboundHeaders"><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Credentials": "true",
+	"Access-Control-Allow-Methods": "GET, POST, HEAD, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH",
+	"Access-Control-Allow-Headers": "*"
+}]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+		
+	</flow>
+	
+</mule>

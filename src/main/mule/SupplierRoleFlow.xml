@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:redis="http://www.mulesoft.org/schema/mule/redis"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:compression="http://www.mulesoft.org/schema/mule/compression"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/compression http://www.mulesoft.org/schema/mule/compression/current/mule-compression.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/redis http://www.mulesoft.org/schema/mule/redis/current/mule-redis.xsd">	
+	<sub-flow name="SupplierRoleDeleteSub_Flow" doc:id="27b42cd1-a26c-45aa-911f-d39c9643b04b" >
+		<try doc:name="Try" doc:id="2b6114ed-1fdf-4a04-802e-9ab016ee89d8" >
+			<foreach doc:name="For Each" doc:id="c1a64a85-cc01-4f7e-801b-3aeac713c05c" collection="#[vars.DeleteMerge]">
+													<intel-json-logger:logger doc:name="Supplier Role Delete Started" doc:id="9119afcd-7843-45bc-bae2-613ac507dbfe" message='#["Supplier Role Delete Started for ERP Record ID:" ++ payload.Entity_id ++ " and Activity is:"  ++ payload.Difference]' />
+			<ee:transform doc:name="Transform Message" doc:id="a8c578cc-d0e5-43e9-8789-6b8409531aaf">
+														<ee:message>
+														</ee:message>
+														<ee:variables>
+															<ee:set-variable variableName="Label"><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+payload.Difference]]></ee:set-variable>
+															<ee:set-variable variableName="diffrence"><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+"DeleteRole"]]></ee:set-variable>
+						<ee:set-variable variableName="erpRecordEntityID" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+payload.Entity_id]]></ee:set-variable>
+						<ee:set-variable variableName="cummulativeDelete" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload]]></ee:set-variable>
+														
+</ee:variables>
+													</ee:transform>
+													<flow-ref doc:name="post_Supplierentities" doc:id="eb9a31b1-5115-47b0-a715-9bbdb9af8290" name="post_entitiescummulative" />
+			<intel-json-logger:logger doc:name="Supplier Role Ended_Flow" doc:id="9f359a19-c62b-4474-9a42-dba2acc15162" message='#["Supplier Role Delete Successfull for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]' />
+												
+</foreach>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="9ea9a4d6-ae5a-405c-981a-b18a4e98db2d" >
+					<intel-json-logger:logger doc:name="SupplierRoleDeleteSub_FlowFailed" doc:id="bd4c88f1-24ca-4d62-877d-88d10147788b" message='#["Supplier Role Delete Failed for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+					<flow-ref doc:name="eip-parse-exception-email-template" doc:id="8d976ef2-5f63-4d74-a400-b0b4e7d2fcac" name="eip-parse-exception-email-template"/>
+					<flow-ref doc:name="changes_acknowledge" doc:id="96222d6e-b677-4200-9d61-38724e86d5cb" name="changes_acknowledge"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="SupplierRoleinsertSub_Flow" doc:id="d594a8b3-d3e1-427f-9ce0-8bd7a52d20d5" >
+		<try doc:name="Try" doc:id="ac0ff91f-5c34-4e22-a1f4-6fb5ee32fc3c" >
+			<foreach doc:name="For Each" doc:id="7c36ee62-f6e3-41b2-a436-44e76b10a5ba" collection="#[vars.auditMerge]">
+													<intel-json-logger:logger doc:name="SupplierRoleInsertSub_FlowStarted" doc:id="c25bc011-63fb-4a60-9c33-c0e198d4ec03" message='#["Supplier Activity Role Started for ERP Record ID:" ++ payload.Entity_id ++ " and Role is:"  ++ payload.Difference]' />
+			<ee:transform doc:name="Transform Message" doc:id="7de76804-4d4b-4c90-acaa-bf18ef01c616">
+														<ee:message>
+														</ee:message>
+														<ee:variables>
+															<ee:set-variable variableName="Label"><![CDATA[%dw 2.0
+output application/java
+---
+payload.Difference]]></ee:set-variable>
+															<ee:set-variable variableName="cummulativeInsert"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn = "everywhere"
+---
+[payload]
+    ]]></ee:set-variable>
+					<ee:set-variable variableName="diffrence"><![CDATA[%dw 2.0
+output application/java
+---
+"InsertRole"]]></ee:set-variable>
+					<ee:set-variable variableName="erpRecordEntityID"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.Entity_id]]></ee:set-variable>
+														
+</ee:variables>
+													</ee:transform>
+													<flow-ref doc:name="post_entities" doc:id="ab3bfbb4-ae8d-45d6-9465-07e1dc338d96" name="post_entitiescummulative" />
+			<intel-json-logger:logger doc:name="SupplierRoleEndedSub_FlowEnded" doc:id="2b0ec93a-b754-4854-8682-dc771bb15a54" message='#["Supplier Activity Insert Successfull for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Role is:"  ++ vars.Label]' />
+												
+</foreach>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="7ed5ef97-51e0-41d0-86fb-9d15d3ce2f67" >
+					<intel-json-logger:logger doc:name="SupplierRoleInsertSub_FlowFailed" doc:id="9d1ffccf-965e-44ad-92d2-fef8d08d977e" message='#["Supplier Activity Insert Failed for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+					<flow-ref doc:name="eip-parse-exception-email-template" doc:id="9d150bbe-f6fc-44d3-9509-4b06e33e9924" name="eip-parse-exception-email-template"/>
+					<flow-ref doc:name="changes_acknowledge" doc:id="67d06e74-d57e-4e27-b909-24a8e45406f0" name="changes_acknowledge"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<flow name="SupplierRole" doc:id="7d4de244-8be9-4afe-961d-aab937d49eed" >
+		<intel-json-logger:logger doc:name="INFO: supplier Role flow initiated" doc:id="3c8cfbaa-0cf0-4e3e-a6a7-1ef8bd837b58" message="supplier Role flow initiated"/>
+		<!-- <flow-ref doc:name="ldap-authenticate-authorize" doc:id="cf46af23-943d-4d9a-a2e9-39b41ee0d15c" name="ldap-authenticate-authorize"/> -->
+		<ee:transform doc:name="Transform Message" doc:id="f2b53cfe-df82-4480-b128-926c8d82b189" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="SupplierID" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.SupplierID splitBy(",")]]></ee:set-variable>
+				<ee:set-variable variableName="date" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+attributes.queryParams.SupplierRolelastrundate]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="OAuthtoken" doc:id="fdb96bf0-c1db-4cd1-9352-10cf2ba50a25" name="OAuthTokencummulative"/>
+		<intel-json-logger:logger doc:name="Token Recieved Conformation" doc:id="541ad683-073b-4874-b48d-43d5cd5b9deb" message='#["Recieved Auth Token " ++ "${secure::reltio_host}"]' />
+		<os:retrieve doc:name="SupplierRolelastrundate" doc:id="7d7174a7-8b1d-4f74-980f-3a0a3a510da7" key="SupplierRolelastrundate" objectStore="Object_store">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<intel-json-logger:logger doc:name="SupplierRolelastrundate" doc:id="c9db3889-6a68-4a9e-bf70-1a0fa72cd4cb" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="ae304ef5-72df-40b7-af5a-a3e4b648fef1" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="currentdatetime" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+(now() >> "UTC") as String {format: "yyyy-MM-dd'T'HH:mm:ss.SSS"} as DateTime]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="0c0d94a1-b084-4ec9-8900-2c37a8636534">
+			<when expression="#[sizeOf(vars.SupplierID) &gt; 0]">
+				<foreach doc:name="For Each" doc:id="cb205658-e01e-4e74-8082-a7b1dfa6b323" collection="#[vars.SupplierID]">
+					<try doc:name="Try" doc:id="ee17bd65-19ae-4d16-b3cd-8c493d24f49f">
+						<ee:transform doc:name="HistoryFromdate" doc:id="c11676bc-756f-4b34-806c-d66c6b5af770" >
+							<ee:message >
+							</ee:message>
+							<ee:variables >
+								<ee:set-variable variableName="CurrentSupplierID" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload]]></ee:set-variable>
+								<ee:set-variable variableName="historyFromdate" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+vars.date]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+						<flow-ref doc:name="SupplierRoleAnswerHistory" doc:id="928db3b6-1f9c-49be-a091-a8246d1f6a79" name="SupplierRoleAnswerHistory" />
+						<ee:transform doc:name="AuditMerge" doc:id="6be1656d-8551-4fd2-9838-810d4206487e">
+													<ee:message>
+													</ee:message>
+													<ee:variables>
+														<ee:set-variable variableName="auditMerge"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn = "everywhere"
+---
+vars.RoleInsertFinal.INTEL_ERP_Role]]></ee:set-variable>
+														<ee:set-variable variableName="DeleteMerge"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn = "everywhere"
+---
+vars.DeleteRoleHistory.INTEL_ERP_Role]]></ee:set-variable>
+													
+</ee:variables>
+												</ee:transform>
+						<choice doc:name="Choice" doc:id="20117fad-ac58-4395-a579-b812183fc468">
+							<when expression="#[!isEmpty(vars.RoleInsertFinal) or !isEmpty(vars.DeleteRoleHistory)]">
+								<intel-json-logger:logger doc:name="ERP_Record Eligibility logger" doc:id="cbd87026-8be4-4dd7-b6f1-25254c9f390f" message="ERP_Record is eligible for processing" />
+								<flow-ref doc:name="SupplierRoleinsertSub_Flow" doc:id="b52e6997-e1af-481c-89ce-e674fd96a36f" name="SupplierRoleinsertSub_Flow" />
+								<flow-ref doc:name="SupplierRoleDeleteSub_Flow" doc:id="2c347a2c-fd9e-4adc-bccc-56fb15291437" name="SupplierRoleDeleteSub_Flow" />
+								<ee:transform doc:name="Transform Message" doc:id="8c53b7f3-19f1-4f62-9e91-ff61681333a8">
+									<ee:message>
+									</ee:message>
+									<ee:variables >
+										<ee:set-variable variableName="AcknowledgementERPIDs" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+(vars.DeleteMerge ++ vars.auditMerge distinctBy $.Entity_id).*Entity_id]]></ee:set-variable>
+									</ee:variables>
+								</ee:transform>
+								<flow-ref doc:name="changes_acknowledge" doc:id="a3d0a75a-3e23-4212-aa1c-4a4edee8e70e" name="changes_acknowledge"/>
+								<intel-json-logger:logger doc:name="ERP_Record Eligibility logger Ended" doc:id="85a4ea05-437e-4fd2-9c34-dbc431e820fc" message="ERP_Record is eligible for Ended" />
+							
+</when>
+							<otherwise>
+								<intel-json-logger:logger doc:name="No active connections in profile ID" doc:id="a2ad94f1-02dc-4c5b-a6c5-124abc405930" message="No active connections in profile ID" />
+								<flow-ref doc:name="eip-parse-payloadnull-email-template" doc:id="2f68fc6d-85c5-450f-8e3b-15e4ce470bdc" name="eip-parse-payloadnull-email-template"/>
+							
+</otherwise>
+						</choice>
+						<error-handler>
+							<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="01ff2ebf-c590-4ff6-8e7e-61f4bceab579">
+					<intel-json-logger:logger doc:name="Logger" doc:id="83a97c1c-43f1-41b4-8012-6ecfa8503607" tracePoint="EXCEPTION" message="Bad CurrentPublicId, move to next Public ID iteration" />
+								<flow-ref doc:name="eip-parse-exception-email-template" doc:id="c35d3f36-4fac-48bc-bf8e-ab154b7e86a4" name="eip-parse-exception-email-template"/>
+				
+</on-error-continue>
+			</error-handler>
+		</try>
+		</foreach>
+			</when>
+			<otherwise>
+				<intel-json-logger:logger doc:name="Logger" doc:id="e326fcb2-24dc-4559-adb2-fb2661cfa02b" message="No New Suppliers" locationInfo="false" />
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="c1d87e88-6ad7-48bb-872f-3bfd53d55eb0">
+													<ee:message>
+													</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="historyDate" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+(now() >> "UTC") as String {format: "yyyy-MM-dd'T'HH:mm:ss.SSS"} as DateTime]]></ee:set-variable>
+			</ee:variables>
+												
+</ee:transform>
+		<os:store doc:name="lastrunDateStore" doc:id="8e23cf4c-c409-4d0f-a3b8-1b61e42e2fef" key="lastrunDate" objectStore="Object_store">
+			<os:value ><![CDATA[#[vars.historyDate]]]></os:value>
+		</os:store>
+		<ee:transform doc:name="Transform Message" doc:id="97d5d1ef-0cc0-42cb-aba5-14c5da3efd6e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+vars.SupplierID]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<intel-json-logger:logger doc:name="Completed End To End" doc:id="b5f694b6-0075-4810-b3ca-d74e6adf3838" message="Completed End To End" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="acf487b7-9d7d-4fe8-a908-423d3623a0f5" type="HTTP:UNAUTHORIZED" when="#[(error.cause.message contains 'Authentication denied') or (error.description contains 'Authorization HTTP header is missing in the request') or (error.description contains 'Authentication Failed!') or (error.description contains'LDAP Authorization Failed')]">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="845b2b7f-f955-45fe-b66e-0d27fca9337d" message="Request for GUID : #[vars.TransactionID] - #[app.name] - authenticated and authorized"/>
+				<async doc:name="Async" doc:id="f068407b-6540-4f04-8ea7-1ac3e37a3307" >
+					<flow-ref doc:name="sendmailforexception" doc:id="ddfe6250-2833-4c8f-8fa0-9c303120bda6" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by unauthorization : ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="1f306ae7-b92b-4799-bc73-07a2852067b4" />
+				<flow-ref doc:name="set-common-flow-response-message" doc:id="fc3da085-7f83-436c-a7a5-f10637de98c9" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="eadbfeb0-7948-4a01-9d13-2735bcd871b9" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="41119617-fd22-4397-a252-a06d480f0ae6" type="HTTP:SERVICE_UNAVAILABLE" when="#[error.cause.message contains 'service unavailable']">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="6fac3830-6c5d-450b-91d6-1ca30ee8bb6d" message="Request for GUID : #[vars.TransactionID] - #[app.name]- server unavailable"/>
+				<async doc:name="Async" doc:id="320c8260-faaa-4467-a967-3461cc7a3050" >
+					<flow-ref doc:name="sendmailforexception" doc:id="99a5baaa-3850-49c0-a638-985cae478f8f" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by unauthorization : ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="85995df2-58fa-4d6c-a781-227653b7bd04" />
+				<flow-ref doc:name="set-common-flow-error-response-message" doc:id="a286ff97-7f43-4874-9840-2ae58e40852f" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="3ac1df0c-b4ad-4238-a006-00bd60c08700" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="aa2cb360-90eb-4245-a716-98383b03dd60" type="ANY">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="a0953cee-208a-48ed-8bc2-4b5f1fa073d3" message="Request for GUID : #[vars.TransactionID] - #[app.name] -ANY "/>
+				<async doc:name="Async" doc:id="7aeb0f0e-5baf-4b4c-9464-49ee6a25f17e" >
+					<flow-ref doc:name="sendmailforexception" doc:id="502554d3-5856-45aa-8e57-232bbdfc3113" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by unauthorization : ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="784de8e5-13cc-4700-a4f5-bf76ee3e57d1" />
+				<flow-ref doc:name="set-common-flow-error-response-message" doc:id="d77929b2-8d12-483a-8704-001ff9fda174" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="c8cee3b5-c724-4d26-a641-dcb7b17af62f" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="2da47cc8-11d3-435c-b5ca-649e1d391e17" type="HTTP:BAD_REQUEST" when="[error.cause.message contains 'Bad request']">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="7dc300c4-3fda-4745-8ba8-df5817228414" message="Request for GUID : #[vars.TransactionID] - #[app.name] -Bad Request"/>
+				<async doc:name="Async" doc:id="bda26bd3-4ac5-4cba-a63b-293dd0686851" >
+					<flow-ref doc:name="sendmailforexception" doc:id="b53c95eb-20f6-4820-ac1f-2921eacb6829" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by unauthorization : ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="5e94f3f2-847e-4dc7-9f01-8b1e932338df" />
+				<flow-ref doc:name="set-common-flow-error-response-message" doc:id="591db030-bad8-4486-bed3-61744b255eb6" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="585656d7-f8da-4f31-b72e-c7480c5e3ceb" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+				</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f6d43759-64f2-423e-bb08-457a2eeec4ba" type="HTTP:FORBIDDEN" when="#[(error.cause.message contains 'forbidden') or (error.description contains 'forbidden')]">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="5f18b028-af49-4ff9-9613-4798093bca96" message="Request for GUID : #[vars.TransactionID] - #[app.name] - Forbidden"/>
+				<async doc:name="Async" doc:id="0576a012-24c1-4900-8aee-9d5113fdad7b" >
+				<flow-ref doc:name="sendmailforexception" doc:id="de4d5538-3bd9-4b24-a2dd-0341a88ce772" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by making forbidden request: ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="33a55273-7f3d-4277-86b4-88e100e649e9" />
+				<flow-ref doc:name="set-common-flow-error-response-message" doc:id="d88bf5f3-fa6e-42eb-b603-4d5b9bfde3ae" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="4a74eace-93e8-41a2-9a5a-978cf482bf37" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+			</on-error-propagate>
+		</error-handler>	
+	</flow>
+	
+<sub-flow name="OAuthTokencummulative" doc:id="3861727b-1d66-44a4-9f7d-2862a52f2b49" >
+		<intel-json-logger:logger doc:name="Starting Get OAuth token" doc:id="486610b9-633e-46c8-a2c4-b21d8e3a30f4" message="Starting Get OAuth token"/>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="31a0182f-fc7e-4cd0-8925-90237c35c5da" >
+			<http:request method="POST" doc:name="Get OAuth Token" doc:id="1f7fa44f-50cc-400a-8f48-969c135ad70a" config-ref="Graphite" path="${secure::graphite_token_path}">
+			<http:body><![CDATA[#[output application/x-www-form-urlencoded encoding="UTF-8"
+---
+{"client_id": p('secure::client_id'), "client_secret": p('secure::client_secret'), "grant_type": p('secure::graphite_grant_type')}]]]></http:body>
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Content-Type" : "application/x-www-form-urlencoded"
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<set-variable value='#["Bearer " ++ (payload.access_token)]' doc:name="Persisit Graphite Token To Variable" doc:id="f4387e50-8cfa-4179-83bd-3c576838157c" variableName="graphiteToken" />
+		<intel-json-logger:logger doc:name="OAuth Token Obtained" doc:id="e06d3186-799a-457d-bd53-556dcd2193ad" message='#["OAuth Token : " ++ (vars.graphiteToken) ++ " Obtained"]' />
+	</sub-flow>
+	<sub-flow name="post_entitiescummulative" doc:id="7ccf3d83-fbc6-4b73-902d-45f86ebdeaf9" >
+		<intel-json-logger:logger doc:name="Begin ReltioSync Application" doc:id="4a80810a-b107-48fe-9fdb-abddaeecfaa7" message="Begin Reltio Sync Application" />
+		<ee:transform doc:name="Transform Message" doc:id="0633c49f-ef5b-4967-b149-acfe3f230dc7" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="Reltioentitiespath" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::reltio_post_path') ++ p('secure::reltio_crosswalk_sync_path') ++ (if (vars.cummulativeInsert != null) (vars.cummulativeInsert[0].Entity_id) else (vars.cummulativeDelete.Entity_id)) ++ "?type=graphiteConnect&options=ovOnly&select=uri,attributes.SupplierRoles"]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="edc6a036-89ac-4efe-b057-a67eddf4f9a3" >
+			<http:request method="GET" doc:name="SupplierSync2Reltio" doc:id="c9c18816-6bc1-48d7-87a2-24ca43934150" config-ref="ReltioAPI" path="#[vars.Reltioentitiespath]">
+			<http:body><![CDATA[#[vars.supplierData]]]></http:body>
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="Transform Message" doc:id="9c5f3629-b693-486f-9a87-11a27e6742a8" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="Uri" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+import * from dw::core::Strings
+---
+payload.object.uri joinBy ""]]></ee:set-variable>
+				<ee:set-variable variableName="BusinessOrgPartyID" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.object.attributes.SupplierActivities[0].value[0]]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="94f8bb28-41e3-4602-a13e-0369cb198775">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+[(flatten(payload.object.attributes.SupplierRoles) filter ($.label contains vars.Label ))[0]]]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+						<ee:set-variable variableName="Uri"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+import * from dw::core::Strings
+---
+payload.object.uri joinBy ""]]></ee:set-variable>
+
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="86e339f8-ace7-4017-aa60-9c75184cd3ec" >
+			<when expression='#[(vars.diffrence != "DeleteRole")]'>
+				<ee:transform doc:name="Transform Message" doc:id="422c8a6b-f370-4190-9226-7c16fc80cd72">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+						<ee:set-variable variableName="PostRoleEntities" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+vars.cummulativeInsert map ((item, index) ->
+{
+	"type": "INSERT_ATTRIBUTE",
+	"uri": vars.Uri ++ "/attributes/SupplierRoles",
+	"newValue": [
+        {
+          "value": {
+            "BusinessPartyRoleCode": [
+              {
+                "value": vars.Label
+              }
+            ],
+            "EffectiveStartDateTime": [
+              {
+                "value": item.SupplierRole_CreatedDate
+              }
+            ],
+            "EffectiveEndDateTime": [
+              {
+                "value": "2099-12-31T00:00:00.000Z"
+              }
+            ],
+            "CreateAgentIdentifier": [
+              {
+                "value": item.SupplierRole_CreatedBy
+              }
+            ],
+            "CreateDateTime": [
+              {
+                "value": item.SupplierRole_CreatedDate
+              }
+            ],
+            "ChangeAgentIdentifier": [
+              {
+                "value": item.SupplierRole_CreatedBy
+              }
+            ],
+            "ChangeDateTime": [
+              {
+                "value": item.SupplierRole_CreatedDate
+              }
+            ]
+          }
+        }
+      ],
+      "crosswalks": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": item.Entity_id
+      }
+})]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+				<ee:transform doc:name="Transform Message" doc:id="043b35f3-fb41-4ed9-aeb2-e4e82cbf1528">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="UpdateEntitiespath"><![CDATA[%dw 2.0
+output application/java
+---
+"/scds/operate/v1/supplier-" ++ vars.Uri ++ "/_update"]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<flow-ref doc:name="SupplierRolePostEntitiesTargetEndpoint" doc:id="8ad25ac1-256c-4286-9f80-239e5235df3c" name="SupplierRolePostEntitiesTargetEndpoint"/>
+			
+</when>
+			<when expression='#[(vars.diffrence == "DeleteRole") and !isEmpty(payload)]'>
+				<ee:transform doc:name="Deletemapping" doc:id="a85eb6d5-30db-4ea5-9208-95b783be5fa6">
+			<ee:message />
+			<ee:variables>
+				<ee:set-variable variableName="createAgent"><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+payload.value map ((item, index) ->
+{
+"type": "UPDATE_ATTRIBUTE",
+"uri":item.ChangeAgentIdentifier.uri joinBy "",
+"newValue": [{
+    "value": vars.cummulativeDelete.UpdatedBy
+}],
+"crosswalks": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeDelete.Entity_id
+      }
+})]]></ee:set-variable>
+				<ee:set-variable variableName="effectivedate"><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+payload.value map ((item, index) ->
+{
+"type": "UPDATE_ATTRIBUTE",
+"uri":item.EffectiveEndDateTime.uri joinBy "",
+"newValue": [{
+    "value": vars.cummulativeDelete.UpdatedAt
+}],
+"crosswalks": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeDelete.Entity_id
+      }
+})]]></ee:set-variable>
+						<ee:set-variable variableName="ChangeDateTime"><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+payload.value map ((item, index) ->
+{
+"type": "UPDATE_ATTRIBUTE",
+"uri":item.ChangeDateTime.uri joinBy "",
+"newValue": [{
+    "value": vars.cummulativeDelete.UpdatedAt
+}],
+"crosswalks": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeDelete.Entity_id
+      }
+})]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<ee:transform doc:name="Deletepayload" doc:id="778203d0-4f69-4842-bbc9-47464ddb1319">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="UpdateEntitiespath"><![CDATA[%dw 2.0
+output application/java
+---
+"/scds/operate/v1/supplier-" ++ vars.Uri ++ "/_update"]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+				<ee:transform doc:name="Transform Message" doc:id="b5837283-c6fd-40a5-88d8-c2319ca7f482">
+					<ee:message>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="PostRoleEntities" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.effectivedate ++ vars.createAgent ++ vars.ChangeDateTime]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<flow-ref doc:name="SupplierRolePostEntitiesTargetEndpoint" doc:id="953a67ec-8125-41e1-8640-d5d692935a55" name="SupplierRolePostEntitiesTargetEndpoint"/>
+			
+</when>
+			<otherwise>
+				<intel-json-logger:logger doc:name="Logger" doc:id="abd503eb-55dc-403d-b187-e1bb3e527002" message='payloadnull'/>
+			</otherwise>
+		</choice>
+		<intel-json-logger:logger doc:name="End post_Supplierentities Application" doc:id="44ad2827-4940-432b-aff9-0e5eb0e976e8" message="End post_Supplierentities Application" />
+	
+</sub-flow>
+	<sub-flow name="SupplierRolePostEntitiesTargetEndpoint" doc:id="4f012abf-d61f-4fdb-8d65-a7a524c0a099" >
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="4e4a00d0-a079-4683-b032-60979c426cb6" >
+			<http:request method="POST" doc:name="PostRoleEntities" doc:id="384511af-0f3f-4244-9c99-fe04cdb627da" config-ref="ReltioAPI" path="#[vars.UpdateEntitiespath]">
+					<http:body><![CDATA[#[vars.PostRoleEntities]]]></http:body>
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+				</http:request>
+		</until-successful>
+		<ee:transform doc:name="Transform Message" doc:id="635b83a3-251a-49f0-9957-5a4f8be4eba7" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="IntelErpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.attributes.SupplierActivities.label[0]]]></ee:set-variable>
+				<ee:set-variable variableName="ReltioError" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.errors.errorDetailMessage[0] default ""]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+	</sub-flow>
+	
+</mule>

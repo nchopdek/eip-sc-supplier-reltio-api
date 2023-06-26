@@ -1,0 +1,49 @@
+name: -Stage Archive
+
+on:
+  workflow_dispatch:
+env:
+  REPO_NAME: ${{ github.event.repository.name }}
+
+jobs:
+  upload-artifact:
+    runs-on:
+      - ipaas-applications
+    steps:
+      - uses: actions/checkout@v2
+      - name: Display Repo Name
+        run: echo $REPO_NAME 
+    
+      - id: get-app_name
+        run: |
+          tmp=$(echo $REPO_NAME | cut -d. -f5)
+          echo "::set-output name=app_name::$tmp"
+      - name: Setting variables
+        id: get-exists
+        run: |
+          echo "App Name ${{steps.get-app_name.outputs.app_name}}"
+          echo "::set-output name=file1::/apps/NAS/app-staging/${{steps.get-app_name.outputs.app_name}}.jar"
+          echo "::set-output name=file2::/apps/NAS/app-staging/${{steps.get-app_name.outputs.app_name}}.zip"
+      - name: Set file type (zip/jar)
+        id: check-file
+        run: |
+          echo "File1: ${{steps.get-exists.outputs.file1}}"
+          echo "File2: ${{steps.get-exists.outputs.file2}}"
+          if test -f ${{steps.get-exists.outputs.file1}}; then
+              #tmp=$(echo jar)
+              echo "::set-output name=file_ext::jar"
+          fi
+          if test -f ${{steps.get-exists.outputs.file2}}; then
+              #tmp=$(echo zip)
+              echo "::set-output name=file_ext::zip"
+          fi
+      - name: Create GH Artifact from NAS stage
+        id: pull-file
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{steps.get-app_name.outputs.app_name}}.zip
+          path: /apps/NAS/app-staging/${{steps.get-app_name.outputs.app_name}}.${{steps.check-file.outputs.file_ext}}
+          if-no-files-found: error
+      - name: Delete Archive From NAS
+        run: |
+          rm /apps/NAS/app-staging/${{steps.get-app_name.outputs.app_name}}.${{steps.check-file.outputs.file_ext}}

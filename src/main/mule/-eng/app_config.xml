@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" 
+	xmlns:spring="http://www.mulesoft.org/schema/mule/spring"
+	xmlns="http://www.mulesoft.org/schema/mule/core" 
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+		http://www.mulesoft.org/schema/mule/spring http://www.mulesoft.org/schema/mule/spring/current/mule-spring.xsd
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+		http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd">
+	<!-- DO NOT MODIFY!
+		Generated with MPK: 1.5.0.14 at 8/8/2022 2:45:42 PM
+	 -->
+		
+	<!-- SECURE-PROPERTIES:CONFIG
+	This enables the use of encrypted (secured) properties but referencing a file on the server which contains key / value pairs 
+	where the values are encrypted. The encryption/decryption key is periodically changed on the server and when this occurs
+	the affected property files are re-generated with the new key. The key value is stored as an environment property on the
+	server and the application can always retrieve the current key by referenceing the environment variable name that stores the key. 
+	-->
+ 	<secure-properties:config file="${MULE_SECURE_PROPERTIES}/eip-sc-supplier-reltio-api.properties" key="${MULE_SECURE_PROPS_KEY}" name="appProps">
+		<secure-properties:encrypt algorithm="AES" mode="CBC" />
+	</secure-properties:config>
+	<secure-properties:config file="${MULE_SECURE_PROPERTIES}/eip-sc-common.properties" key="${MULE_SECURE_PROPS_KEY}" name="commonProps">
+		<secure-properties:encrypt algorithm="AES" mode="CBC" />
+	</secure-properties:config>
+	
+	<!-- SPRING:CONFIG
+	This loads any beans definitions contained in the beans.xml config within the engineering folder. If you have your own beans to load
+	you can do so in a different beans.xml (or any other name you choose). For example, the Router is a bean that is created at startup
+	and also loads all valid routes from the routes.json file(s) so that they are cached. -->
+	<spring:config name="engSpringConfig" files="classpath:-eng/beans.xml" doc:id="a5db4ef3-5893-4dcf-8856-b2da92df6f78" />
+	
+	
+</mule>

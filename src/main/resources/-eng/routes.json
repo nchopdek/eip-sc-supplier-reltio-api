@@ -1,0 +1,7 @@
+[
+	{
+		"method": "GET",
+		"route": "/v1/platform/info",
+		"flowName": "GET:/v1/platform/info"
+	}
+]

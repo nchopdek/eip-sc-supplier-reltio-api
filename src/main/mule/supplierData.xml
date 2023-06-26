@@ -1,0 +1,2046 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:redis="http://www.mulesoft.org/schema/mule/redis"
+	xmlns:compression="http://www.mulesoft.org/schema/mule/compression"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/compression http://www.mulesoft.org/schema/mule/compression/current/mule-compression.xsd
+http://www.mulesoft.org/schema/mule/redis http://www.mulesoft.org/schema/mule/redis/current/mule-redis.xsd">	
+	<flow name="supplierData" doc:id="8b7df0ed-0ef5-4eae-a4d0-dcb380ac116d" >
+		<intel-json-logger:logger doc:name="INFO: supplierAddress flow initiated" doc:id="33beccf9-f90b-4cd8-a29c-8e9e76754df9" message="supplierAddress flow initiated"/>
+<!-- [STUDIO:"ldap-authenticate-authorize"]		<flow-ref doc:name="ldap-authenticate-authorize" doc:id="956f9f9f-6788-46b1-8dac-d761167c629c" name="ldap-authenticate-authorize"/> [STUDIO] -->
+		<flow-ref doc:name="OAuthtoken" doc:id="ab8ca122-76c5-411c-b234-2deb45895f9d" name="OAuthToken"/>
+		<intel-json-logger:logger doc:name="Token Recieved Conformation" doc:id="cd9eb443-1996-4edf-91fd-a9988cbb7642" message='#["Recieved Auth Token " ++ "${secure::reltio_host}"]'/>
+		<flow-ref doc:name="Get Graphite changes_connections" doc:id="473ca21e-d41e-4b8d-98ff-75ac9ad40e83" name="changes_connections"/>
+		<choice doc:name="Choice" doc:id="b13e5b0c-f68b-43f9-8dd3-1e903b73934f">
+			<when expression="#[sizeOf(vars.ChangedConnections) &gt; 0]">
+				<foreach doc:name="For Each" doc:id="6ec8c572-567e-4a42-9707-0bd54ebea2ae" collection="#[vars.ChangedConnections]">
+					<try doc:name="Try" doc:id="37b2d916-17ae-48e1-9b41-124370be9277">
+			<set-variable value='#[%dw 2.0&#10;output application/json encoding="UTF-8"&#10;---&#10;payload]' doc:name="CurrentPublicId Set Variable" doc:id="a6dd72bf-5315-43d6-bbab-03b390927a32" variableName="CurrentPublicId" />
+						<flow-ref doc:name="AnswerHistory" doc:id="6ac86447-80e1-4688-b6e4-d8c0b19dceac" name="AnswerHistory" />
+						<set-payload value="#[vars.CurrentPublicId]" doc:name="Set Payload to CurrentPublicId" doc:id="d7cf4fb7-be8f-48ab-9691-7e1b2e2e533e" />
+						<flow-ref doc:name="get_profile" doc:id="81c1b7b7-ecc3-4a70-81ea-c1a06d5276d5" name="get_profile" />
+						<ee:transform doc:name="supplierId Set Variable" doc:id="f8e288c5-a0a1-4258-bc53-94705a8e5d8f">
+						<ee:message>
+						</ee:message>
+						<ee:variables>
+							<ee:set-variable variableName="supplierId"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+var eligibleERP=flatten(vars.ConnectionData.ERP_Record filter $.'_id' != null and ($.Integration_ERP_Status?) 
+	and(p('secure::Integration_ERP_Status') contains upper($.Integration_ERP_Status))
+)
+
+---
+flatten(eligibleERP.'_id')
+
+]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+						<choice doc:name="Choice" doc:id="2e2542be-fde5-48bd-921a-8fa6451e25b5">
+							<when expression="#[if(vars.supplierId != null) sizeOf(vars.supplierId) &gt; 0 else vars.supplierId != null]">
+								<foreach doc:name="For Each" doc:id="3c7c7acf-8170-4ab9-98f7-d29175c97565" collection="#[vars.supplierId]">
+						<try doc:name="Try" doc:id="6828117b-dd80-4333-ad18-9cd1bedeb662">
+										<ee:transform doc:name="ERP_Record and ERP_Record_ID Set Variable" doc:id="96464f11-4246-4d00-be63-43dfef15344f">
+								<ee:message>
+								</ee:message>
+								<ee:variables>
+											<ee:set-variable variableName="ERP_Record_ID"><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+											<ee:set-variable variableName="ERP_Record"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+
+var ERP_Record_var= vars.ConnectionData.ERP_Record filter $.'_id' == payload
+---
+ERP_Record_var]]></ee:set-variable>
+								</ee:variables>
+							</ee:transform>
+										<intel-json-logger:logger doc:name="Logging Current ERP_Record_ID" doc:id="7d90b566-322b-4e1a-babf-28a55a1ea9a5" message='#["Current ERP_Record_ID " ++ (vars.ERP_Record_ID)]'/>
+										<choice doc:name="Choice" doc:id="388d9e13-0dbc-4bc9-a4b1-314cabfa6194">
+										<when expression="#[vars.ERP_Record != null]">
+											<intel-json-logger:logger doc:name="ERP_Record Eligibility logger" doc:id="4be8a9d4-3c84-4c9c-824e-67dd5211bb48" message="ERP_Record is eligible for processing" />
+											<ee:transform doc:name="Transform Message" doc:id="01314630-5c04-4ac1-8508-a278b560117c">
+													<ee:message>
+													</ee:message>
+													<ee:variables >
+														<ee:set-variable variableName="ERP_Record_var" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.ConnectionData.ERP_Record filter $.'_id' == payload]]></ee:set-variable>
+													</ee:variables>
+												</ee:transform>
+												<ee:transform doc:name="Transform Message" doc:id="a1ef1e0f-f941-4424-813b-6327d74ef9df">
+													<ee:message>
+													</ee:message>
+													<ee:variables >
+														<ee:set-variable variableName="ERPID_var" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+joinBy(flatten(vars.ERP_Record_var.ERP_ID),"") default null]]></ee:set-variable>
+													</ee:variables>
+												</ee:transform>
+<!-- [STUDIO:"Transform Message"]												<ee:transform doc:name="Transform Message" doc:id="a3681fc5-5430-41e0-be2d-6f496c865bb9">
+													<ee:message>
+													</ee:message>
+													<ee:variables >
+														<ee:set-variable variableName="RoleInsert" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+fun appendInsert(profile, history)=flatten((if (not isEmpty(profile)) profile else []) ++ 
+      (if (not isEmpty(history.Insert_History)) (history filter ($.Entity_id == payload) map ((val, ind) -> val) ) else []))
+&#45;&#45;-
+appendInsert(vars.ERP_Record_var.INTEL_ERP_Role,vars.RoleFinal.INTEL_ERP_Role
+)]]></ee:set-variable>
+													</ee:variables>
+												</ee:transform> [STUDIO] -->
+												<ee:transform doc:name="AuditMerge" doc:id="d7baa379-8543-4ffa-9763-ee584a644af6">
+													<ee:message>
+													</ee:message>
+													<ee:variables >
+														<ee:set-variable variableName="auditMerge" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn = "everywhere"
+
+var ERP_Record_var= vars.ConnectionData.ERP_Record filter $.'_id' == payload
+var ERPID_var = joinBy(flatten(ERP_Record_var.ERP_ID),"") default null
+fun appendInsert(profile, history)=flatten((if (not isEmpty(profile)) profile else []) ++ 
+      (if (not isEmpty(history.Insert_History)) (history filter ($.Entity_id == payload) map ((val, ind) -> val.Insert_History) ) else []))      
+var purchOrgInsert= appendInsert(ERP_Record_var.INTEL_ERP_Purchasing_Orgs , vars.insertAuditHistory.INTEL_ERP_Purchasing_Orgs)
+var CoCdIns = appendInsert(ERP_Record_var.INTEL_ERP_Company_Codes,vars.insertAuditHistory.INTEL_ERP_Company_Codes)
+
+var insertMerge = purchOrgInsert groupBy ((item, index) -> item.'_id')
+pluck ((value, key, index) -> value)
+map ((item, index) -> item
+reduce ((item, accumulator={}) -> accumulator - '_id' ++ item)
+ )
+var inserMergeCoCd = CoCdIns groupBy ((item, index) -> item.'_id')
+pluck ((value, key, index) -> value)
+map ((item, index) -> item
+reduce ((item, accumulator={}) -> accumulator - '_id' ++ item)
+ )
+fun appendUpdate (profile,history)= (if (not isEmpty(profile) ) profile else [] ) ++ (
+        if (not isEmpty(history))
+       history.Update_History  else []  )
+var updMerge = appendUpdate(insertMerge,vars.updateAuditHistory.INTEL_ERP_Purchasing_Orgs)
+var updMergeCoCd = appendUpdate(inserMergeCoCd,vars.updateAuditHistory.INTEL_ERP_Company_Codes)  
+
+
+---
+
+[
+	{
+	"INTEL_ERP_Purchasing_Orgs" :  
+		(updMerge groupBy ((item, index) -> item."_id")
+			pluck ((value, key, index) -> value)
+				map ((item, index) -> item
+					reduce ((item, accumulator={}) -> accumulator - '_id' ++ item)
+	 			)
+	 	) filter sizeOf($) > 5
+ 	},
+ 	{
+	"INTEL_ERP_Company_Codes" :  
+		(updMergeCoCd groupBy ((item, index) -> item."_id")
+			pluck ((value, key, index) -> value)
+				map ((item, index) -> item
+					reduce ((item, accumulator={}) -> accumulator - '_id' ++ item)
+		) ) filter sizeOf($) > 5    
+	} 
+]
+]]></ee:set-variable>
+													</ee:variables>
+												</ee:transform>
+												<ee:transform doc:name="DeleteMerge" doc:id="5826078f-41cd-40bf-b661-948dc9da701e">
+													<ee:message>
+													</ee:message>
+													<ee:variables >
+														<ee:set-variable variableName="deleteMerge" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+import * from dw::core::Strings
+fun appendDelete(profile, history)=flatten((if (not isEmpty(profile)) profile else []) ++ 
+      (
+        if (not isEmpty(history)) 
+        (history  
+        map ((val, ind) -> val) ) else []))   
+var purchOrgDel= appendDelete(vars.auditMerge.INTEL_ERP_Purchasing_Orgs,vars.updateHistory.INTEL_ERP_Purchasing_Orgs.Update_History)
+var CoCdDel = appendDelete(vars.auditMerge.INTEL_ERP_Company_Codes,vars.updateHistory.INTEL_ERP_Company_Codes.Update_History)
+---
+[{
+"INTEL_ERP_Purchasing_Orgs" :  
+(purchOrgDel groupBy ((item, index) -> item."_id")
+pluck ((value, key, index) -> value)
+map ((item, index) -> item
+reduce ((item, accumulator={}) -> accumulator - '_id' ++ item)
+ ) ) filter sizeOf($) > 3
+},
+{
+"INTEL_ERP_Company_Codes" :  
+(CoCdDel groupBy ((item, index) -> item."_id")
+pluck ((value, key, index) -> value)
+map ((item, index) -> item
+reduce ((item, accumulator={}) -> accumulator - '_id' ++ item)
+ ) ) filter sizeOf($) > 3
+}]
+]]></ee:set-variable>
+													</ee:variables>
+												</ee:transform>
+												<ee:transform doc:name="SupplierData Mapping" doc:id="2792962a-4c8d-486a-a0ff-8d86a4754076">
+			<ee:message>
+			</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="supplierData"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn = "everywhere"
+
+type date = LocalDateTime {format: "MM/dd/yyyy HH:mm:ss"}
+type DateFractionSecond= LocalDateTime {format: "yyyy-MM-dd HH:mm:ss.SSS"}
+fun normalizeT(sampleDate) = (sampleDate) replace "T" with " "
+fun noERPiD(sampleData)=if((sampleData == null) or (trim(sampleData) == "") or (trim(sampleData) == "null")) true else false
+fun poboxChk(sampleData)= if ((upper(sampleData) replace /[., -]/ with "") contains "POBOX") true else false
+type reltioDate  = String { format: "MM-dd-yyyy HH.mm"}
+var ERP_Record_var= vars.ConnectionData.ERP_Record filter $.'_id' == payload
+var ERPID_var = joinBy(flatten(ERP_Record_var.ERP_ID),"") default null
+    
+fun appendUpdate(profile, history)=flatten((if (not isEmpty(profile)) profile else []) ++ 
+      (if (not isEmpty(history)) (history filter ($.Entity_id == payload) map ((val, ind) -> val) ) else []))
+
+var CompanyCode_var= flatten(vars.deleteMerge.INTEL_ERP_Company_Codes)
+var SupRole_var =appendUpdate(ERP_Record_var.INTEL_ERP_Role,vars.UpdateFinal.INTEL_ERP_Role)
+var NameType = ["LegalName","TradeStyleName"]
+var SupPhysAddress_var = ERP_Record_var.INTEL_ERP_Address
+var SupplierActivity_var = appendUpdate(ERP_Record_var.INTEL_ERP_Activity,vars.UpdateFinal.INTEL_ERP_Activity)
+var ValidatedBy_var=SupPhysAddress_var.Address__Validated_By[0]
+var ValidatedDate_var=if (SupPhysAddress_var.Address__Validated_Date[0] == null) null else normalizeT(SupPhysAddress_var.Address__Validated_Date[0]) as DateFractionSecond as reltioDate
+var purchOrg= flatten(vars.deleteMerge.INTEL_ERP_Purchasing_Orgs)
+fun appendPayment(profile, history)=flatten((if (not isEmpty(profile)) profile.Payment else []) ++ 
+      (if (not isEmpty(history)) (history filter (profile.ID contains $.Entity_id ) map ((val, ind) -> val) ) else []))
+      
+fun PaymentIterationMethod (Company) = Company map ((item, index) -> {
+"Payment" : item.INTEL_Company_Code_Payment_Method,
+"ID" : item."_id"})
+
+fun PaymentIterationTerm (Company) = Company map ((item, index) -> {
+"Payment" : item.INTEL_Company_Code_Payment_Term,
+"ID" : item."_id"})
+
+var coreSup = if (noERPiD(ERPID_var)) {
+    "CountryCode": [
+		{
+            "type": "configuration/entityTypes/Supplier/attributes/CountryCode",
+            "value": vars.ConnectionData.Entity_Country
+        }
+    ],
+    "CountrySubdivisionCode": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/CountrySubdivisionCode",
+        "value": SupPhysAddress_var.Address.Address_Region_State[0] default vars.ConnectionData.Entity_Country,
+		}
+	],
+    "CreateAgentIdentifier": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/CreateAgentIdentifier",
+        "value": ValidatedBy_var default "NA"
+		}
+	],
+    "CreateDateTime": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/CreateDateTime",
+        "value": ValidatedDate_var default now() as reltioDate
+		}
+	],
+    "ChangeAgentIdentifier": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/ChangeAgentIdentifier",
+        "value": ValidatedBy_var default "NA"
+		}
+	],
+    "ChangeDateTime": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/ChangeDateTime",
+        "value": ValidatedDate_var default now() as reltioDate
+		}
+	]
+}
+else {
+    "SupplierIdentifier": [
+        {
+            "type": "configuration/entityTypes/Supplier/attributes/SupplierIdentifier",
+            "value": ERPID_var
+        }
+    ],
+    "CountryCode": [
+		{
+            "type": "configuration/entityTypes/Supplier/attributes/CountryCode",
+            "value": vars.ConnectionData.Entity_Country
+        }
+    ],
+    "CountrySubdivisionCode": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/CountrySubdivisionCode",
+        "value": SupPhysAddress_var.Address.Address_Region_State[0] default vars.ConnectionData.Entity_Country,
+		}
+	],
+    "CreateAgentIdentifier": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/CreateAgentIdentifier",
+        "value": ValidatedBy_var default "NA"
+		}
+	],
+    "CreateDateTime": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/CreateDateTime",
+        "value": ValidatedDate_var default now() as reltioDate
+		}
+	],
+    "ChangeAgentIdentifier": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/ChangeAgentIdentifier",
+        "value": ValidatedBy_var default "NA"
+		}
+	],
+    "ChangeDateTime": [
+		{
+        "type": "configuration/entityTypes/Supplier/attributes/ChangeDateTime",
+        "value": ValidatedDate_var default now() as reltioDate
+		}
+	]
+}
+var SupplierRoles = {
+    "SupplierRoles": SupRole_var map{
+        "value": {
+            "BusinessPartyRoleCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierRoles/attributes/BusinessPartyRoleCode",
+                    "value": if (typeOf($) == String) $ else $.Difference
+                }
+            ],
+            "EffectiveStartDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierRoles/attributes/EffectiveStartDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ],
+            "EffectiveEndDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierRoles/attributes/EffectiveEndDateTime",
+                    "value": if (typeOf($) == Object) $.UpdatedAt as DateFractionSecond as reltioDate 
+                    						else "12/31/2099 00:00:00" as date as reltioDate
+                }
+            ],
+            "CreateAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierRoles/attributes/ChangeAgentIdentifier",
+                    "value": ValidatedBy_var default "NA"
+                }
+            ],
+            "CreateDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierRoles/attributes/CreateDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ],
+            "ChangeAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierRoles/attributes/ChangeAgentIdentifier",
+                    "value": ValidatedBy_var default "NA"
+                }
+            ],
+            "ChangeDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierRoles/attributes/ChangeDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ]
+        }
+    }
+}
+var SupplierActivities ={
+    "SupplierActivities": SupplierActivity_var map {
+        "value": {
+            "SupplierActivityCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierActivities/attributes/SupplierActivityCode",
+                    "value": if (typeOf($) == String) $ else $.Difference
+                    			
+                }
+            ],
+            "SupplierActivityRequesterEmailSentDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierActivities/attributes/SupplierActivityRequesterEmailSentDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ],
+            "EffectiveStartDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierActivities/attributes/EffectiveStartDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ],
+            "EffectiveEndDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierActivities/attributes/EffectiveEndTime",
+                    "value": if (typeOf($) == Object) $.UpdatedAt as DateFractionSecond as reltioDate 
+                    						else "12/31/2099 00:00:00" as date as reltioDate
+                }
+            ],
+            "CreateAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierActivities/attributes/ChangeAgentIdentifier",
+                    "value": ValidatedBy_var default "NA"
+                }
+            ],
+            "CreateDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierActivities/attributes/CreateDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ],
+            "ChangeAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierActivities/attributes/ChangeAgentIdentifier",
+                    "value": ValidatedBy_var default "NA"
+                }
+            ],
+            "ChangeDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierActivities/attributes/ChangeDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ]
+        }
+    }
+   
+}
+var SupplierName = {
+    "SupplierNames": NameType map if($ == "LegalName"){
+        "value": {
+            "SupplierName": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/SupplierName",
+                    "value": if (upper(vars.ConnectionData.Tax_DBA_Name_Exists) == "Y" and vars.ConnectionData.Entity_Name?) vars.ConnectionData.Entity_Name
+								else
+									vars.ConnectionData.Entity_Name
+                }
+            ],
+            "BusinessNameTypeCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/BusinessNameTypeCode",
+                    "value": $
+                }
+            ],
+            "EffectiveStartDateTime": [
+            	{
+            		"type" : "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/EffectiveStartDateTime",
+            		"value": normalizeT(vars.ConnectionData.'__Profile_Update_Date') as DateFractionSecond as reltioDate
+            	}
+            ],
+            "EffectiveEndDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/EffectiveEndDateTime",
+                    "value": "12/31/2099 00:00:00" as date as reltioDate
+                }
+            ],
+            "ValidationStatuses": [
+                {
+                    "value":
+                        {
+                            "SupplierDataValidationStatusCode": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/SupplierDataValidationStatusCode",
+                                    "value": if(vars.ConnectionData.Entity_Public_Id == null) "TO BE DONE"
+                                    			else "VALID" default "VALID"
+                                }
+                            ],
+                            "EffectiveStartDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/EffectiveStartDateTime",
+                                    "value":  normalizeT(vars.ConnectionData.Company_Summary__Verify_Date) as DateFractionSecond as reltioDate
+                                    				default now() as reltioDate
+                                }
+                            ],
+                            "EffectiveEndDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/EffectiveEndDateTime",
+                                    "value": "12/31/2099 00:00:00" as date as reltioDate
+                                }
+                            ],
+                            "CreateAgentIdentifier": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/CreateAgentIdentifier",
+                                    "value": ValidatedBy_var default "NA"
+                                }
+                            ],
+                            "CreateDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/CreateDateTime",
+                                    "value": normalizeT(vars.ConnectionData.Company_Summary__Verify_Date) as DateFractionSecond as reltioDate
+                                    				default now() as reltioDate
+                                }
+                            ],
+                            "ChangeAgentIdentifier": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/ChangeAgentIdentifier",
+                                    "value": ValidatedBy_var default "NA"
+                                }
+                            ],
+                            "ChangeDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/ChangeDateTime",
+                                    "value": normalizeT(vars.ConnectionData.Company_Summary__Verify_Date) as DateFractionSecond as reltioDate
+                                    				default now() as reltioDate
+                                }
+                            ]
+                        }
+                }
+            ],
+            "TrustedSourceCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/TrustedSourceCode",
+                    "value": "INTEL"
+                }
+            ],
+            "CreateAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/CreateAgentIdentifier",
+                    "value": vars.ConnectionData.INTEL_Supplier_Business_Owner_Name default "NA"
+                }
+            ],
+            "CreateDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/CreateDateTime",
+                    "value": normalizeT(vars.ConnectionData.connection.createdAt)as DateFractionSecond as reltioDate
+                    				default now() as reltioDate
+                }
+            ],
+            "ChangeAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ChangeAgentIdentifier",
+                    "value": "12345678" default "NA"
+                }
+            ],
+            "ChangeDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ChangeDateTime",
+                    "value": normalizeT(vars.ConnectionData.connection.updatedAt)as DateFractionSecond as reltioDate
+                    				default now() as reltioDate
+                }
+            ]                
+        }
+    }
+    else {
+    	        "value": {
+            "SupplierName": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/SupplierName",
+                    "value": if (upper(vars.ConnectionData.Tax_DBA_Name_Exists) == "Y" and vars.ConnectionData.Entity_Name?) vars.ConnectionData.Tax_DBA_Names
+								else
+									vars.ConnectionData.Entity_Name
+                }
+            ],
+            "BusinessNameTypeCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/BusinessNameTypeCode",
+                    "value": $
+                }
+            ],
+            "EffectiveStartDateTime": [
+            	{
+            		"type" : "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/EffectiveStartDateTime",
+            		"value": normalizeT(vars.ConnectionData.'__Profile_Update_Date') as DateFractionSecond as reltioDate
+            	}
+            ],
+            "EffectiveEndDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/EffectiveEndDateTime",
+                    "value": "12/31/2099 00:00:00" as date as reltioDate
+                }
+            ],
+            "ValidationStatuses": [
+                {
+                    "value":
+                        {
+                            "SupplierDataValidationStatusCode": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/SupplierDataValidationStatusCode",
+                                    "value": if(vars.ConnectionData.Entity_Public_Id == null) "TO BE DONE"
+                                    			else "VALID" default "VALID"
+                                }
+                            ],
+                            "EffectiveStartDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/EffectiveStartDateTime",
+                                    "value":  normalizeT(vars.ConnectionData.Company_Summary__Verify_Date) as DateFractionSecond as reltioDate
+                                    				default now() as reltioDate
+                                }
+                            ],
+                            "EffectiveEndDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/EffectiveEndDateTime",
+                                    "value": "12/31/2099 00:00:00" as date as reltioDate
+                                }
+                            ],
+                            "CreateAgentIdentifier": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/CreateAgentIdentifier",
+                                    "value": ValidatedBy_var default "NA"
+                                }
+                            ],
+                            "CreateDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/CreateDateTime",
+                                    "value": normalizeT(vars.ConnectionData.Company_Summary__Verify_Date) as DateFractionSecond as reltioDate
+                                    				default now() as reltioDate
+                                }
+                            ],
+                            "ChangeAgentIdentifier": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/ChangeAgentIdentifier",
+                                    "value": ValidatedBy_var default "NA"
+                                }
+                            ],
+                            "ChangeDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/ChangeDateTime",
+                                    "value": normalizeT(vars.ConnectionData.Company_Summary__Verify_Date) as DateFractionSecond as reltioDate
+                                    				default now() as reltioDate
+                                }
+                            ]
+                        }
+                }
+            ],
+            "TrustedSourceCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/TrustedSourceCode",
+                    "value": "INTEL"
+                }
+            ],
+            "CreateAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/CreateAgentIdentifier",
+                    "value": vars.ConnectionData.INTEL_Supplier_Business_Owner_Name default "NA"
+                }
+            ],
+            "CreateDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/CreateDateTime",
+                    "value": normalizeT(vars.ConnectionData.connection.createdAt)as DateFractionSecond as reltioDate
+                    				default now() as reltioDate
+                }
+            ],
+            "ChangeAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ChangeAgentIdentifier",
+                    "value": "12345678" default "NA"
+                }
+            ],
+            "ChangeDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ChangeDateTime",
+                    "value": normalizeT(vars.ConnectionData.connection.updatedAt)as DateFractionSecond as reltioDate
+                    				default now() as reltioDate
+                }
+            ]                
+        }
+    }
+}
+var SupStatus =  {
+    "SupplierLifecycleStatuses": {
+        "value": {
+            "LifecycleStatusTypeCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierLifecycleStatuses/attributes/LifecycleStatusTypeCode",
+                    "value":  joinBy(flatten(ERP_Record_var.INTEL_ERP_Status),"")
+                    				default ""
+                }
+            ],
+            "EffectiveStartDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierLifecycleStatuses/attributes/EffectiveStartDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ],
+            "EffectiveEndDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierLifecycleStatuses/attributes/EffectiveEndTime",
+                    "value": "12/31/2099 00:00:00" as date as reltioDate
+                }
+            ],
+            "CreateAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierLifecycleStatuses/attributes/ChangeAgentIdentifier",
+                    "value": ValidatedBy_var default "NA"
+                }
+            ],
+            "CreateDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierLifecycleStatuses/attributes/CreateDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ],
+            "ChangeAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierLifecycleStatuses/attributes/ChangeAgentIdentifier",
+                    "value": ValidatedBy_var default "NA"
+                }
+            ],
+            "ChangeDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierLifecycleStatuses/attributes/ChangeDateTime",
+                    "value": ValidatedDate_var default now() as reltioDate
+                }
+            ]
+        }
+    }
+}
+var PhysicalAddress = {
+    "SupplierPhysicalAddresses": SupPhysAddress_var map if (poboxChk($.Address.Address_1)){
+        "value": {
+            "PostOfficeBoxText" : [
+            	{
+            		"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/PostOfficeBoxText",
+                    "value": $.Address.Address_1
+            	}
+            ],			
+            "CityName": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CityName",
+                    "value": $.Address.Address_City
+                }
+            ],
+            "CountrySubdivisionCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CountrySubdivisionCode",
+                    "value": $.Address.Address_Region_State
+                }
+            ],
+            "CountryCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CountryCode",
+                    "value": $.Address.Address_Country
+                }
+            ],
+            "PostalCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/PostalCode",
+                    "value": $.Address.Address_Postal_Code
+                }
+            ],
+			"TrustedSourceCode": [
+			
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/TrustedSourceCode",
+					"value": "INTEL"
+				}
+			],
+			"SupplierPhysicalAddressName": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressName",
+					"value": $.Location_Name
+				}
+			],
+           "EffectiveStartDateTime" : [
+            	{
+            		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/EffectiveStartDateTime",
+            		"value": ValidatedDate_var default now() as reltioDate
+            	}
+            ],
+            "EffectiveEndDateTime" : [
+            	{
+            		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/EffectiveEndDateTime",
+            		"value": "12/31/2099 00:00:00" as date as reltioDate
+            	}
+            ],            
+			"CreateAgentIdentifier": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CreateAgentIdentifier",
+					"value": ValidatedBy_var default "NA"
+				}
+			],
+			"CreateDateTime": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CreateDateTime",
+					"value": ValidatedDate_var default now() as reltioDate
+				}
+			],
+			"ChangeAgentIdentifier": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/ChangeAgentIdentifier",
+					"value": ValidatedBy_var default "NA"
+				}
+			],
+			"ChangeDateTime": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/ChangeDateTime",
+					"value": ValidatedDate_var default now() as reltioDate
+				}
+			],            
+			"SupplierPhysicalAddressValidationStatuses": [
+                {
+                    "value": [
+                        {
+                            "SupplierDataValidationStatusCode": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressValidationStatuses/attributes/SupplierDataValidationStatusCode",
+                                    "value": if($.Address__Validation_Status== "validated") "VALID"
+                                    			else "INVALID" default "INVALID"
+                                }
+                            ],
+                            "EffectiveStartDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressValidationStatuses/attributes/EffectiveStartDateTime",
+                                    "value": ValidatedDate_var default now() as reltioDate
+                                }
+                            ],
+                            "EffectiveEndDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressValidationStatuses/attributes/EffectiveEndDateTime",
+                                    "value": "12/31/2099 00:00:00" as date as reltioDate
+                                }
+                            ],
+                            "CreateAgentIdentifier": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressValidationStatuses/attributes/CreateAgentIdentifier",
+                                    "value": ValidatedBy_var default "NA"
+                                }
+                            ],
+                            "CreateDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressValidationStatuses/attributes/CreateDateTime",
+                                    "value": ValidatedDate_var default now() as reltioDate
+                                }
+                            ],
+                            "ChangeAgentIdentifier": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressValidationStatuses/attributes/ChangeAgentIdentifier",
+                                    "value": ValidatedBy_var default "NA"
+                                }
+                            ],
+                            "ChangeDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressValidationStatuses/attributes/ChangeDateTime",
+                                    "value": ValidatedDate_var default now() as reltioDate
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+			"SupplierFacilityTypes": flatten(ERP_Record_var.INTEL_ERP_Facility_Type) map(value,item)-> {
+				"value": {
+					"SupplierFacilityTypeCode": [{
+						"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/SupplierFacilityTypeCode",
+						"value": value default "Office"		
+					}],
+					"EffectiveStartDateTime": [
+						{
+							"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/EffectiveStartDateTime",
+							"value": ValidatedDate_var default now() as reltioDate
+						}
+					],
+					"EffectiveEndDateTime": [
+						{
+							"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/EffectiveEndDateTime",
+							"value": "12/31/2099 00:00:00" as date as reltioDate
+						}
+					],
+					"CreateAgentIdentifier": [
+						{
+							"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/CreateAgentIdentifier",
+							"value": ValidatedBy_var default "NA"
+						}
+					],
+					"CreateDateTime": [
+						{
+							"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/CreateDateTime",
+							"value": ValidatedDate_var default now() as reltioDate
+						}
+					],
+					"ChangeAgentIdentifier": [
+						{
+							"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/ChangeAgentIdentifier",
+							"value": ValidatedBy_var default "NA"
+						}
+					],
+					"ChangeDateTime": [
+						{
+							"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/ChangeDateTime",
+							"value": ValidatedDate_var default now() as reltioDate
+						}
+					]
+				}
+
+	},			
+            "SupplierPhysicalAddressUsageLocations": flatten(ERP_Record_var.INTEL_ERP_Address_Usage) map(value,item)-> 
+                {
+                    "value": {
+                            "AddressLocationTypeCode": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/AddressLocationTypeCode",
+                                    "value": "PO BOX"
+                                }
+                            ],
+                            "AddressUsageTypeCode": [
+                                {
+                                	"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/AddressUsageTypeCode",
+                                	"value": value default "Physical"
+                                }
+                            ],                         
+                            "EffectiveStartDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/EffectiveStartDateTime",
+                                    "value": ValidatedDate_var default now() as reltioDate
+                                }
+                            ],
+                            "EffectiveEndDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/EffectiveEndDateTime",
+                                    "value": "12/31/2099 00:00:00" as date as reltioDate
+                                }
+                            ],
+				           "ContactAllowedIndicator": [
+				            	{
+				            		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/ContactAllowedIndicator",
+				            		"value": false
+				            	}
+				            ],                               
+							"CreateAgentIdentifier": [
+								{
+									"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/CreateAgentIdentifier",
+									"value": ValidatedBy_var default "NA"
+								}
+							],
+							"CreateDateTime": [
+								{
+									"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/CreateDateTime",
+									"value": ValidatedDate_var default now() as reltioDate
+								}
+							],
+							"ChangeAgentIdentifier": [
+								{
+									"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/ChangeAgentIdentifier",
+									"value": ValidatedBy_var default "NA"
+								}
+							],
+							"ChangeDateTime": [
+								{
+									"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/ChangeDateTime",
+									"value": ValidatedDate_var default now() as reltioDate
+								}
+							]
+                        }
+                }
+		}
+	}
+else
+{
+        "value": {
+            "PhysicalStreetAddressText": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/PhysicalStreetAddressText",
+                    "value": $.Address.Address_1
+                }
+            ],
+            "CityName": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CityName",
+                    "value": $.Address.Address_City
+                }
+            ],
+            "CountrySubdivisionCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CountrySubdivisionCode",
+                    "value": if(isEmpty($.Address.Address_Region_State))  $.Address.Address_Country else $.Address.Address_Region_State
+                }
+            ],
+            "CountryCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CountryCode",
+                    "value": $.Address.Address_Country
+                }
+            ],
+            "PostalCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/PostalCode",
+                    "value": $.Address.Address_Postal_Code
+                }
+            ],
+			"TrustedSourceCode": [
+			
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/TrustedSourceCode",
+					"value": "INTEL"
+				}
+			],
+			"SupplierPhysicalAddressName": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressName",
+					"value": $.Location_Name
+				}
+			],			
+           "EffectiveStartDateTime" : [
+            	{
+            		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/EffectiveStartDateTime",
+            		"value": ValidatedDate_var default now() as reltioDate
+            	}
+            ],
+            "EffectiveEndDateTime" : [
+            	{
+            		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/EffectiveEndDateTime",
+            		"value": "12/31/2099 00:00:00" as date as reltioDate
+            	}
+            ],            
+			"CreateAgentIdentifier": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CreateAgentIdentifier",
+					"value": ValidatedBy_var default "NA"
+				}
+			],
+			"CreateDateTime": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/CreateDateTime",
+					"value": ValidatedDate_var default now() as reltioDate
+				}
+			],
+			"ChangeAgentIdentifier": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/ChangeAgentIdentifier",
+					"value": ValidatedBy_var default "NA"
+				}
+			],
+			"ChangeDateTime": [
+				{
+					"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/ChangeDateTime",
+					"value": ValidatedDate_var default now() as reltioDate
+				}
+			],            
+			"SupplierPhysicalAddressValidationStatuses": [
+                {
+                    "value": {
+                            "SupplierDataValidationStatusCode": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/ValidationStatuses/attributes/SupplierDataValidationStatusCode",
+                                    "value": if($.Address__Validation_Status== "validated") "VALID"
+                                    			else "INVALID" default "INVALID"
+                                }
+                            ],
+                            "EffectiveStartDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/EffectiveStartDateTime",
+                                    "value": ValidatedDate_var default now() as reltioDate
+                                }
+                            ],
+                            "EffectiveEndDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/EffectiveEndDateTime",
+                                    "value": "12/31/2099 00:00:00" as date as reltioDate
+                                }
+                            ],
+                            "CreateAgentIdentifier": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/CreateAgentIdentifier",
+                                    "value": ValidatedBy_var default "NA"
+                                }
+                            ],
+                            "CreateDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/CreateDateTime",
+                                    "value": ValidatedDate_var default now() as reltioDate
+                                }
+                            ],
+                            "ChangeAgentIdentifier": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/ChangeAgentIdentifier",
+                                    "value": ValidatedBy_var default "NA"
+                                }
+                            ],
+                            "ChangeDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierNames/attributes/ValidationStatuses/attributes/ChangeDateTime",
+                                    "value": ValidatedDate_var default now() as reltioDate
+                                }
+                            ]
+                        }
+                }
+            ],
+			"SupplierFacilityTypes": flatten(ERP_Record_var.INTEL_ERP_Facility_Type) map(value,item)->{
+				"value": {
+					"SupplierFacilityTypeCode": [{
+						"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/SupplierFacilityTypeCode",
+						"value": value default "Office"		
+					}],
+					"EffectiveStartDateTime": [
+						{
+							"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/EffectiveStartDateTime",
+							"value": ValidatedDate_var default now() as reltioDate
+						}
+					],
+					"EffectiveEndDateTime": [
+						{
+							"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/EffectiveEndDateTime",
+							"value": "12/31/2099 00:00:00" as date as reltioDate
+						}
+					],
+					"CreateAgentIdentifier": [
+						{
+							"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/CreateAgentIdentifier",
+							"value": ValidatedBy_var default "NA"
+						}
+					],
+					"CreateDateTime": [
+						{
+							"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/CreateDateTime",
+							"value": ValidatedDate_var default now() as reltioDate
+						}
+					],
+					"ChangeAgentIdentifier": [
+						{
+							"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/ChangeAgentIdentifier",
+							"value": ValidatedBy_var default "NA"
+						}
+					],
+					"ChangeDateTime": [
+						{
+							"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierFacilityTypes/attributes/ChangeDateTime",
+							"value": ValidatedDate_var default now() as reltioDate
+						}
+					]
+				}
+
+	},			
+            "SupplierPhysicalAddressUsageLocations": flatten(ERP_Record_var.INTEL_ERP_Address_Usage) map(value,item)-> 
+                {
+                    "value":
+                        {
+                        	"AddressLocationTypeCode" : [
+                        		{
+                        			"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/AddressLocationTypeCode",
+                        			"value" : "Business"
+                        		}
+                        	],
+                            "AddressUsageTypeCode": [
+                                {
+                                	"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/AddressUsageTypeCode",
+                                	"value": value default "Physical"
+                                }
+                            ],                         
+                            "EffectiveStartDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/EffectiveStartDateTime",
+                                    "value": ValidatedDate_var default now() as reltioDate
+                                }
+                            ],
+                            "EffectiveEndDateTime": [
+                                {
+                                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/EffectiveEndDateTime",
+                                    "value": "12/31/2099 00:00:00" as date as reltioDate
+                                }
+                            ],
+				           "ContactAllowedIndicator": [
+				            	{
+				            		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/ContactAllowedIndicator",
+				            		"value": false
+				            	}
+				            ],                               
+							"CreateAgentIdentifier": [
+								{
+									"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/CreateAgentIdentifier",
+									"value": ValidatedBy_var default "NA"
+								}
+							],
+							"CreateDateTime": [
+								{
+									"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/CreateDateTime",
+									"value": ValidatedDate_var default now() as reltioDate
+								}
+							],
+							"ChangeAgentIdentifier": [
+								{
+									"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/ChangeAgentIdentifier",
+									"value": ValidatedBy_var default "NA"
+								}
+							],
+							"ChangeDateTime": [
+								{
+									"type": "configuration/entityTypes/Supplier/attributes/SupplierPhysicalAddresses/attributes/SupplierPhysicalAddressUsageLocations/attributes/ChangeDateTime",
+									"value": ValidatedDate_var default now() as reltioDate
+								}
+							]
+                        }   
+                }
+        }
+    }
+}
+var CompanyCodes = {
+    "SupplierIntelCompanies":
+    	CompanyCode_var map{
+        "value": {
+            "CompanyCode": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/CompanyCode",
+                    "value": $.INTEL_Company_Code_Name
+                }
+            ],
+            "EffectiveStartDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/EffectiveStartDateTime",
+                    "value": if ($.INTEL_Company_Code_Start_Date == null ) null else normalizeT($.INTEL_Company_Code_Start_Date) as DateFractionSecond as reltioDate
+                }
+            ],
+            "EffectiveEndDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/EffectiveEndDateTime",
+                    "value":  if($.DeletedAt?) normalizeT($.DeletedAt) as DateFractionSecond as reltioDate
+                    	 		else normalizeT($.INTEL_Company_Code_End_Date) as DateFractionSecond as reltioDate
+                    	 		default null
+                }
+            ],
+            "CreateAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/CreateAgentIdentifier",
+                    "value": $.CompanyCodes_CreatedBy default "NA"
+                }
+            ],
+            "CreateDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/CreateDateTime",
+                    "value": normalizeT($.CompanyCodes_CreatedDate) as DateFractionSecond as reltioDate default now() as reltioDate
+                }
+            ],
+            "ChangeAgentIdentifier": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/ChangeAgentIdentifier",
+                    "value": if($.CompanyCodes_ChangedBy?) $.CompanyCodes_ChangedBy
+				    			else $.CompanyCodes_CreatedBy
+				    				default "NA"
+                }
+            ],
+            "ChangeDateTime": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/ChangeDateTime",
+                    "value": if($.CompanyCodes_ChangedDate?) normalizeT($.CompanyCodes_ChangedDate) as DateFractionSecond as reltioDate
+				    			else normalizeT($.CompanyCodes_CreatedDate) as DateFractionSecond as reltioDate 
+				    				default now() as reltioDate
+                }
+            ],
+            "PayAllItemsSeparateIndicator": [
+                {
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/PayAllItemsSeparateIndicator",
+                    "value": if ($.INTEL_Company_Code_Individual_Payment == "n") false else true default true
+                }
+            ],
+            "SupplierIntelCompanyPaymentMethods": 
+            	appendPayment(PaymentIterationMethod([$]) , vars.UpdateFinal.INTEL_Company_Code_Payment_Method) 
+            		map ((item, index) -> 
+            	{
+                    "value": {
+                        "PaymentMethodCode": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentMethods/attributes/PaymentMethodCode",
+                                "value": if (typeOf(item) == String) item else item.Difference
+                            }
+                        ],
+                        "EffectiveStartDateTime": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentMethods/attributes/EffectiveStartDateTime",
+                                "value":  ValidatedDate_var default now() as reltioDate
+                            }
+                        ],
+                        "EffectiveEndDateTime": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentMethods/attributes/EffectiveEndDateTime",
+                                "value": if (typeOf(item) == Object) item.UpdatedAt as DateFractionSecond as reltioDate 
+                    						else "12/31/2099 00:00:00" as date as reltioDate
+                            }
+                        ],
+                        "CreateAgentIdentifier": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentMethods/attributes/CreateAgentIdentifier",
+                                "value": $.CompanyCodes_CreatedBy default "NA"
+                            }
+                        ],
+                        "CreateDateTime": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentMethods/attributes/CreateDateTime",
+                                "value": normalizeT($.CompanyCodes_CreatedDate) as DateFractionSecond as reltioDate default now() as reltioDate
+                            }
+                        ],
+                        "ChangeAgentIdentifier": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentMethods/attributes/ChangeAgentIdentifier",
+                                "value": if($.CompanyCodes_ChangedBy?) $.CompanyCodes_ChangedBy
+				    						else $.CompanyCodes_CreatedBy
+				    							default "NA"
+                            }
+                        ],
+                        "ChangeDateTime": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentMethods/attributes/ChangeDateTime",
+                                "value": if($.CompanyCodes_ChangedDate?) normalizeT($.CompanyCodes_ChangedDate) as DateFractionSecond as reltioDate
+				    								else normalizeT($.CompanyCodes_CreatedDate) as DateFractionSecond as reltioDate 
+				    									default now() as reltioDate
+                            }
+                        ]
+                    }
+                }),
+            "SupplierIntelCompanyPaymentTerms": 
+            	appendPayment(PaymentIterationTerm([$]) , vars.UpdateFinal.INTEL_Company_Code_Payment_Term) 
+            		map ((item, index) -> 
+                {
+                    "value": {
+                        "PaymentTermCode": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentTerms/attributes/PaymentTermCode",
+                                "value": if (typeOf(item) == String) item else item.Difference
+                            }
+                        ],
+                        "EffectiveStartDateTime": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentTerms/attributes/EffectiveStartDateTime",
+                                "value": ValidatedDate_var default now() as reltioDate
+                            }
+                        ],
+                        "EffectiveEndDateTime": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentTerms/attributes/EffectiveEndDateTime",
+                                "value": if (typeOf(item) == Object) item.UpdatedAt as DateFractionSecond as reltioDate 
+                    						else "12/31/2099 00:00:00" as date as reltioDate
+                            }
+                        ],
+                        "CreateAgentIdentifier": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentTerms/attributes/CreateAgentIdentifier",
+                                "value": $.CompanyCodes_CreatedBy default "NA"
+                            }
+                        ],
+                        "CreateDateTime": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentTerms/attributes/CreateDateTime",
+                                "value": normalizeT($.CompanyCodes_CreatedDate) as DateFractionSecond as reltioDate default now() as reltioDate
+                            }
+                        ],
+                        "ChangeAgentIdentifier": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentTerms/attributes/ChangeAgentIdentifier",
+                                "value": if($.CompanyCodes_ChangedBy?) $.CompanyCodes_ChangedBy
+				    						else $.CompanyCodes_CreatedBy
+				    							default "NA"
+                            }
+                        ],
+                        "ChangeDateTime": [
+                            {
+                                "type": "configuration/entityTypes/Supplier/attributes/SupplierIntelCompanies/attributes/SupplierIntelCompanyPaymentTerms/attributes/ChangeDateTime",
+                                "value": if($.CompanyCodes_ChangedDate?) normalizeT($.CompanyCodes_ChangedDate) as DateFractionSecond as reltioDate
+				    								else normalizeT($.CompanyCodes_CreatedDate) as DateFractionSecond as reltioDate 
+				    									default now() as reltioDate
+                            }
+                        ]
+                    }
+                }
+			)
+        }
+	}
+}
+var PurOrgs = {
+ 	"SupplierPurchaseOrganizations" : 
+ 		purchOrg map{
+      	"value": {
+          	"PurchaseOrganizationCode": [
+            {
+	                "type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/PurchaseOrganizationCode",
+	                "value": "1102"
+            }],
+       		"EffectiveStartDateTime": [
+            {
+	                "type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/EffectiveStartDateTime",
+	                "value":  normalizeT($.INTEL_Organization_Start_Date) as DateFractionSecond as reltioDate
+            }],
+       		"EffectiveEndDateTime": [
+            {
+	                "type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/EffectiveEndDateTime",
+	                "value":  if($.DeletedAt?) normalizeT($.DeletedAt) as DateFractionSecond as reltioDate
+	                		  else normalizeT($.INTEL_Organization_End_Date) as DateFractionSecond as reltioDate
+            }],
+	        "AutomaticallyGeneratePurchaseOrderAllowedIndicator" : [
+        	{
+	        		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/AutomaticallyGeneratePurchaseOrderAllowedIndicator",
+	        		"value": if (upper($.INTEL_Auto_Generate_PO_Allowed) == 'Y') true
+	        					else false
+        	}],
+	        "GoodsReceiptInvoiceVerificationIndicator" : [
+        	{
+	        		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/GoodsReceiptInvoiceVerificationIndicator" ,
+	        		"value": if (upper($.INTEL_Goods_Receipt_Invoice_Verification) == 'Y') true
+	        					else false
+        	}],
+        	"EvaluatedReceiptSettlementIndicator" : [
+        	{
+	        		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/EvaluatedReceiptSettlementIndicator",
+	        		"value": if (upper($.INTEL_Auto_Evaluated_Receipt_Settlement) == 'Y') true
+	        					else false
+        	}],
+        	"AutomaticEvaluatedReceiptSettlementReturnsIndicator" : [
+        	{
+        			"type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/AutomaticEvaluatedReceiptSettlementReturnsIndicator",
+        			"value": if (upper($.INTEL_Auto_ERS_Return_Items) == 'Y') true
+	        					else false
+        	}],
+        	"InternationalCommerceTermCode" : [
+        	{
+	        		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/InternationalCommerceTermCode",
+	        		"value": $.INTEL_International_Commerce_Term
+        	}],
+        	"InternationalCommerceTermQualifierName" : [
+        	{
+	        		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/InternationalCommerceTermQualifierName",
+	        		"value": $.INTEL_International_Commerce_Qualifier
+        	}],
+        	"CurrencyCode" : [
+        	{
+	        		"type" : "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/CurrencyCode",
+	        		"value": $.INTEL_Currency
+        	}],        	        	
+          	"PaymentTermCode": [
+      		{
+                    "type": "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/PaymentTermCode",
+                    "value": $.INTEL_Payment_Term_Code
+            }],
+          	"PriceDateControlCode": [
+          	{
+                  	"type": "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/PriceDateControlCode",
+                    "value": $.INTEL_Price_Date_Control
+            }],
+        	"CreateAgentIdentifier": [
+        	{
+				    "type": "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/CreateAgentIdentifier",
+				    "value": $.Purchorgs_CreatedBy default "NA"
+			}],
+			"CreateDateTime": [
+			{
+				    "type": "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/CreateDateTime",
+				    "value": normalizeT($.PurchOrgs_CreatedDate) as DateFractionSecond as reltioDate default now() as reltioDate
+			}],
+			"ChangeAgentIdentifier": [
+			{
+				    "type": "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/ChangeAgentIdentifier",
+				    "value": if($.PurchOrg_ChangedBy?) $.PurchOrg_ChangedBy
+				    			else $.Purchorgs_CreatedBy
+				    				default "NA"
+			}],
+			"ChangeDateTime": [
+			{
+				    "type": "configuration/entityTypes/Supplier/attributes/SupplierPurchaseOrganizations/attributes/ChangeDateTime",
+				    "value": if($.PurchOrg_ChangedDate?) normalizeT($.PurchOrg_ChangedDate) as DateFractionSecond as reltioDate
+				    			else normalizeT($.PurchOrgs_CreatedDate) as DateFractionSecond as reltioDate 
+				    				default now() as reltioDate
+			}]
+	
+	        }
+          }
+}
+ 	
+var CrossWalk = {
+    "crosswalks": [
+        {
+            "type": "configuration/sources/graphiteConnect",
+            "value": payload
+        }
+    ]
+}
+---
+[
+    {
+        "type": "configuration/entityTypes/Supplier",
+        "attributes": {
+		(coreSup),
+		(SupplierName),
+		(PhysicalAddress),
+		(SupplierActivities),
+		(SupplierRoles),
+		(CompanyCodes),
+		(SupStatus),
+		(PurOrgs)
+        },
+			(CrossWalk)
+    }
+]]]></ee:set-variable>
+				</ee:variables>
+		</ee:transform>
+											<flow-ref doc:name="post_entities" doc:id="be48ad61-1b55-4f90-9282-e9541af70077" name="post_entities" />
+											<flow-ref doc:name="patch_profile" doc:id="088fb385-3c6d-4b69-be8e-ad813178f1d7" name="patch_profile" />
+											<flow-ref doc:name="changes_acknowledge" doc:id="fcec3ea9-ac57-4466-901d-00d9bb9287e5" name="changes_acknowledge" />
+										</when>
+										<otherwise>
+											<intel-json-logger:logger doc:name="ERP_Record is null" doc:id="febab954-93f7-44e1-a041-e9cc7c0c389c" message="ERP_Record is null" />
+										</otherwise>
+									</choice>
+										<error-handler>
+											<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="47386941-c82c-439d-a7d2-66188e0f9798">
+												<intel-json-logger:logger doc:name="Bad SupplierId" doc:id="5872f89f-023c-4106-ad0a-806d90371c52" tracePoint="EXCEPTION" message="Bad SupplierId, move to next SupplierID." />
+												<flow-ref doc:name="Send Mail for Exception" doc:id="baa7ad70-0f9e-4bcb-9d82-41fa3b3a3955" name="eip-parse-exception-email-template"/>
+											</on-error-continue>
+										</error-handler>
+									</try>
+					</foreach>
+							</when>
+							<otherwise>
+								<intel-json-logger:logger doc:name="No active connections in profile ID" doc:id="057b114b-e9b0-4f11-acf2-4063801cbf27" message="No active connections in profile ID" />
+							</otherwise>
+						</choice>
+						<error-handler>
+							<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="60bda352-718d-4fc4-b105-8f0ad19b7b3d">
+					<intel-json-logger:logger doc:name="Logger" doc:id="3d5402c5-a4c6-496a-903d-9e46c01dfe75" tracePoint="EXCEPTION" message="Bad CurrentPublicId, move to next Public ID iteration" />
+				</on-error-continue>
+			</error-handler>
+		</try>
+		</foreach>
+			</when>
+			<otherwise>
+				<intel-json-logger:logger doc:name="Logger" doc:id="2b83a488-5850-4226-ad41-d77cd871eb67" message="No New Connections" locationInfo="false" />
+			</otherwise>
+		</choice>
+		<intel-json-logger:logger doc:name="Logger" doc:id="0f17e404-3d77-4fc7-a8b0-e306803f60ff" message='Completed End To End'/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="2685877f-e8fe-4af0-8d5f-62e2b6a42969" type="HTTP:UNAUTHORIZED" when="#[(error.cause.message contains 'Authentication denied') or (error.description contains 'Authorization HTTP header is missing in the request') or (error.description contains 'Authentication Failed!') or (error.description contains'LDAP Authorization Failed')]">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="5740752d-d202-4d35-b767-49985af4cac9" message="Request for GUID : #[vars.TransactionID] - #[app.name] - authenticated and authorized"/>
+				<async doc:name="Async" doc:id="e880884d-9d24-4bd5-a268-ad9cf1db5716" >
+					<flow-ref doc:name="sendmailforexception" doc:id="4b81c4f0-0e55-4dd4-b4dd-f9d496d5267f" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by unauthorization : ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="857b7e24-8fcc-481f-ae01-b93dfdd3efc4" />
+				<flow-ref doc:name="set-common-flow-response-message" doc:id="9f0a6fd7-56f8-46d9-ad90-741b102c5677" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="3aa84138-afa4-4753-8c49-43551c50b7ca" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="eecd3732-e822-4b93-ab64-d714051ddb5f" type="HTTP:SERVICE_UNAVAILABLE" when="#[error.cause.message contains 'service unavailable']">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="14da48cc-0975-4d6a-8f5b-922c92ae1895" message="Request for GUID : #[vars.TransactionID] - #[app.name]- server unavailable"/>
+				<async doc:name="Async" doc:id="117a9546-4207-4bf7-9a0d-b12b0e08314c" >
+					<flow-ref doc:name="sendmailforexception" doc:id="eda40467-79d8-43a6-8685-68e638a04eac" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by unauthorization : ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="15482fad-c923-47b6-8c09-5e70b96c071d" />
+				<flow-ref doc:name="set-common-flow-error-response-message" doc:id="15eaf5e4-82aa-4bb6-9d81-476309e08a84" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="d41cf622-b45f-45a4-8dc9-40afd0a28cee" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="bfef7c06-212c-45f9-b6a9-7d0d4f8ba989" type="ANY">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="401d7a19-3425-48a3-a644-42713defd6ad" message="Request for GUID : #[vars.TransactionID] - #[app.name] -ANY "/>
+				<async doc:name="Async" doc:id="9ee0ed4a-601f-4585-b82d-3c9bbdd89975" >
+					<flow-ref doc:name="sendmailforexception" doc:id="60acd9ec-e445-44e7-a987-5fc610440d06" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by unauthorization : ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="10c408ab-0de7-4de8-9f14-f9ec649ea30a" />
+				<flow-ref doc:name="set-common-flow-error-response-message" doc:id="a68828a5-207f-4771-be75-a2bfa5855d33" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="36df93b0-06e3-45d8-ab16-b587f77a52c0" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+			</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="941de963-3752-4c4b-9bfd-49d1a7b71548" type="HTTP:BAD_REQUEST" when="[error.cause.message contains 'Bad request']">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="52771e72-f416-45cb-a834-d53a37de534e" message="Request for GUID : #[vars.TransactionID] - #[app.name] -Bad Request"/>
+				<async doc:name="Async" doc:id="22ed4aef-f7ad-4792-8f9a-57cba359619a" >
+					<flow-ref doc:name="sendmailforexception" doc:id="5b180059-6d5b-4f2e-84c3-160a6324d4fb" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by unauthorization : ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="5e0e4882-728f-4b51-9a20-e2cb5dd28511" />
+				<flow-ref doc:name="set-common-flow-error-response-message" doc:id="cefc18d3-7055-4fad-9483-c8888503320d" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="07cc6c90-fb22-47ed-92d1-b53dca6eb257" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+				</on-error-propagate>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f9bf20ac-39f1-4404-9522-0acf8c3f1b59" type="HTTP:FORBIDDEN" when="#[(error.cause.message contains 'forbidden') or (error.description contains 'forbidden')]">
+				<intel-json-logger:logger doc:name="Request for GUID" doc:id="2445c5f3-588f-4e14-af87-07f0f3f653b4" message="Request for GUID : #[vars.TransactionID] - #[app.name] - Forbidden"/>
+				<async doc:name="Async" doc:id="0055331d-62b0-41d1-834d-d9b8ddb719ee" >
+				<flow-ref doc:name="sendmailforexception" doc:id="2af9373e-31e4-43cb-b74c-f60f34c37ffd" name="eip-parse-exception-email-template" />
+				</async>
+				<set-payload value="#[{ &quot;ErrorCode&quot; : &quot;E&quot; ,&quot;ErrorDescription&quot; : &quot;#['Exception caused by making forbidden request: ' + error.message]&quot; }]" doc:name="Set Payload" doc:id="2dac6806-7ebd-4ed7-84a0-5b654140d109" />
+				<flow-ref doc:name="set-common-flow-error-response-message" doc:id="590ee856-667b-4aee-82fa-648ab401dde2" name="set-common-flow-error-response-message"/>
+				<intel-json-logger:logger doc:name="INFO:Completed Flow" doc:id="d6204ca9-b138-4d87-ad16-4df4753459c7" message="Request for GUID : #[vars.logId] - #[app.name] - #[vars.userId] - Completed the flow"/>
+			</on-error-propagate>
+		</error-handler>	
+	</flow>
+	<sub-flow name="AnswerHistory" doc:id="298c8881-6c0e-4909-8a20-294fc0aff186" >
+		<try doc:name="Try" doc:id="863e5b06-d19f-4f3b-ac8e-f071c80dba17" >
+			<intel-json-logger:logger doc:name="Answer History Begin" doc:id="88750a99-123f-4883-bf1d-cccf60a1cc9e" message="Answer History Begin" />
+			<ee:transform doc:name="AnswerHistory Path Set" doc:id="e4c9354e-7e37-4811-a453-30b24e97608f">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="history_url"><![CDATA[%dw 2.0
+output application/java
+---
+p('secure::graphite_history') ++ "/" ++ vars.CurrentPublicId]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="0df7a51a-bf80-40ab-bcac-1d6be73b2f0b" >
+				<http:request method="GET" doc:name="AnswerHistoryCall" doc:id="468ff6bb-6ca7-4279-89a1-bd1f023a8a09" config-ref="Graphite" path="#[vars.history_url]">
+			<http:headers><![CDATA[#[output application/json
+---
+{
+	"Authorization" : (vars.graphiteToken)
+}]]]></http:headers>
+		</http:request>
+			</until-successful>
+<!-- [STUDIO:"Decompress"]			<compression:decompress doc:name="Decompress" doc:id="a7db17f2-5fa8-46e8-8217-89fba212ba32" outputMimeType="application/json">
+			<compression:decompressor>
+				<compression:gzip-decompressor />
+			</compression:decompressor>
+		</compression:decompress> [STUDIO] -->
+			<ee:transform doc:name="AnswerHistory" doc:id="4045276a-3442-4dff-9878-cfbe9d3b56c4">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="updateHistory"><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+import * from dw::core::Strings
+fun formatdatetime(d: DateTime) = d as DateTime {
+	format: "yyyy-MM-dd HH:mm:ss.SSS"
+}
+---
+{
+	"INTEL_ERP_Activity": {
+		"Update_History": (payload.changeHistory.changes 
+			filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Activity))
+				flatMap ((item, index) ->
+	    			item.groups.ERP_Record filter ($.changeType =="update") map (v, k) -> {
+						"_id": v."_id",
+						"Difference": if(typeOf(v.before.INTEL_ERP_Activity) == Array)
+						v.before.INTEL_ERP_Activity -- v.after.INTEL_ERP_Activity
+										else null,
+						"UpdatedAt": formatdatetime(item.updatedAt)
+					}
+				)
+		)
+	},
+	"INTEL_ERP_Role" : {
+		"Update_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Role))
+		     flatMap ((item, index) ->
+			    item.groups.ERP_Record filter ($.changeType =="update") map (v, k) -> {
+			        "EntityID" : v."_id",
+			        "Difference" : if(typeOf(v.before.INTEL_ERP_Role) == Array)
+			        (v.before.INTEL_ERP_Role -- v.after.INTEL_ERP_Role)
+			        				else null,
+			        "UpdatedAt" : formatdatetime(item.updatedAt)
+			    }
+			)
+		)
+	},
+	"INTEL_Company_Code_Payment_Method": {
+		"Update_History": (payload.changeHistory.changes 
+			filter (not isEmpty ($.groups.INTEL_Company_Code.before.INTEL_Company_Code_Payment_Method))
+				flatMap ((item, index) ->
+	    			item.groups.INTEL_Company_Code filter ($.changeType =="update") map (v, k) -> {
+						"Entity_id": v."_id",
+						"Difference": if(typeOf(v.before.INTEL_Company_Code_Payment_Method) == Array)
+						v.before.INTEL_Company_Code_Payment_Method -- v.after.INTEL_Company_Code_Payment_Method
+										else null,
+						"UpdatedAt": formatdatetime(item.updatedAt)
+					}
+				)
+		)
+	},
+	"INTEL_Company_Code_Payment_Term" : {
+		"Update_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.INTEL_Company_Code.before.INTEL_Company_Code_Payment_Term))
+		     flatMap ((item, index) ->
+			    item.groups.INTEL_Company_Code filter ($.changeType =="update") map (v, k) -> {
+			        "Entity_id" : v."_id",
+			        "Difference" : v.before.INTEL_Company_Code_Payment_Term,
+			        "UpdatedAt" : formatdatetime(item.updatedAt)
+			    }
+			)
+		)
+	},
+	"INTEL_ERP_Purchasing_Orgs": {
+		"Update_History": (payload.changeHistory.changes 
+			filter (not isEmpty ($.groups.INTEL_Purchasing_Org.before.INTEL_Organization_End_Date))
+				flatMap ((item, index) ->
+	    			item.groups.INTEL_Purchasing_Org filter ($.changeType =="update") map (v, k) -> {
+						"_id": v."_id",
+						"DeletedAt": if(v.before.INTEL_Organization_End_Date == "12/31/2099")
+						formatdatetime(v.after.INTEL_Organization_End_Date)
+										else null,
+						"UpdatedAt": formatdatetime(item.updatedAt)
+					}
+				)
+		)
+	},
+	"INTEL_ERP_Company_Codes": {
+		"Update_History": (payload.changeHistory.changes 
+			filter (not isEmpty ($.groups.INTEL_Company_Code.before.INTEL_Company_Code_End_Date))
+				flatMap ((item, index) ->
+	    			item.groups.INTEL_Company_Code filter ($.changeType =="update") map (v, k) -> {
+						"_id": v."_id",
+						"DeletedAt": if(v.before.INTEL_Company_Code_End_Date == "12/31/2099")
+						formatdatetime(v.after.INTEL_Company_Code_End_Date)
+										else null,
+						"UpdatedAt": formatdatetime(item.updatedAt)
+					}
+				)
+		)
+	}
+//	"INTEL_ERP_Business_Blocks":{
+  //      "Update_History": (payload.changeHistory.changes
+  //          filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Blocks))
+  //              flatMap ((item, index) ->
+  //                  item.groups.ERP_Record filter ($.changeType =="update") map (v, k) -> {
+ //                       "_id": v."_id",
+ //                       "Difference" : if(typeOf(v.before.INTEL_ERP_Blocks) == Array)
+//			        (v.before.INTEL_ERP_Blocks -- v.after.INTEL_ERP_Blocks)
+//			        				else null,
+ //                       "UpdatedAt": formatdatetime(item.updatedAt)
+ //                   }
+ //               )
+ //       )
+ //   }				
+}
+]]></ee:set-variable>
+					<ee:set-variable variableName="insertAuditHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+fun formatdatetime(d: DateTime) = d as DateTime {
+	format: "yyyy-MM-dd'T'HH:mm:ss.SSS"
+}
+var changes = flatten(payload.changeHistory.changes)
+var PurchOrgs = flatten(payload.changeHistory.changes.groups.INTEL_Purchasing_Org) filter $.changeType =="insert"
+var CompanyCodes = flatten(payload.changeHistory.changes.groups.INTEL_Company_Code) filter $.changeType =="insert"
+var BusinessBlock = flatten(payload.changeHistory.changes.groups.INTEL_Block) filter $.changeType =="insert"
+---
+{
+"INTEL_ERP_Purchasing_Orgs" : (changes) flatMap(v1)-> (
+ PurchOrgs map(value)->{
+      ((v1.groups.ERP_Record filter $.changeType == "update") filter (flatten($.after.INTEL_ERP_Purchasing_Orgs) contains value."_id") map("Entity_id": $."_id") distinctBy ((item, index) -> item.Entity_id)),
+      ("Insert_History" : (v1.groups.INTEL_Purchasing_Org) filter $.changeType =="insert" map(v2)->{
+        "_id": v2."_id",
+        "PurchOrgs_CreatedDate" : formatdatetime(v1.updatedAt),
+        "Purchorgs_CreatedBy" : v1.changedBy.name
+      })
+} )filter sizeOf($) > 1 and $.Entity_id != null distinctBy $.Insert_History,
+
+"INTEL_ERP_Company_Codes" : (changes) flatMap(v1)-> (
+ CompanyCodes map(value)->{
+      ((v1.groups.ERP_Record filter $.changeType == "update") filter (flatten($.after.INTEL_ERP_Company_Codes) contains value."_id") map("Entity_id": $."_id") distinctBy ((item, index) -> item.Entity_id)),
+      ("Insert_History" : (v1.groups.INTEL_Company_Code) filter $.changeType =="insert" map(v2)->{
+          "_id": v2."_id",
+        "CompanyCodes_CreatedDate" : formatdatetime(v1.updatedAt),
+        "CompanyCodes_CreatedBy" : v1.changedBy.name
+      })
+} )filter sizeOf($) > 1 and $.Entity_id != null distinctBy $.Insert_History
+
+//"INTEL_ERP_Business_Blocks" : (changes) flatMap(v1)-> (
+ //BusinessBlock map(value)->{
+  //    ((v1.groups.ERP_Record filter $.changeType == "update") filter (flatten($.after.INTEL_ERP_Blocks) contains value."_id") map("Entity_id": $."_id") distinctBy ((item, index) -> item.Entity_id)),
+  //    ("Insert_History" : (v1.groups.INTEL_Block) filter $.changeType =="insert" map(v2)->{
+ //         "_id": v2."_id",
+  //      "BusinessBlocks_CreatedDate" : formatdatetime(v1.updatedAt),
+ //       "BusinessBlocks_CreatedBy" : v1.changedBy.name
+ //     })
+//} )filter sizeOf($) > 1 and $.Entity_id != null distinctBy $.Insert_History,
+
+//"INTEL_ERP_Role" : {
+ //       "Insert_History" : (payload.changeHistory.changes
+ //           filter (not isEmpty ($.groups.ERP_Record.before.INTEL_ERP_Role))
+ //        flatMap ((item, index) ->
+ //           "EntityID" : v."_id",
+  //           "Difference" : if(typeOf(v.after.INTEL_ERP_Role) == Array)
+  //           (v.after.INTEL_ERP_Role -- v.before.INTEL_ERP_Role)
+  //                           else null,
+  //           "SupplierRole_CreatedDate": (item.updatedAt),
+//"SupplierRole_CreatedBy": (item.changedBy.name)
+  //           }
+ //           )
+ //       )
+ //   }
+}]]></ee:set-variable>
+					<ee:set-variable variableName="updateAuditHistory" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+import * from dw::core::Strings
+fun formatdatetime(d: DateTime) = d as DateTime {
+	format: "yyyy-MM-dd HH:mm:ss.SSS"
+}
+---
+{
+	"INTEL_ERP_Purchasing_Orgs" : {
+		"Update_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.INTEL_Purchasing_Org))
+               flatMap ((item, index) ->
+			    item.groups.INTEL_Purchasing_Org filter ($.changeType =="update") map (v, k) ->  {
+			        "_id" : v."_id",
+			        "PurchOrg_ChangedDate" : formatdatetime(item.updatedAt),
+			        "PurchOrg_ChangedBy" : item.changedBy.name
+                } 
+            ) 
+        ) orderBy - $.PurchOrg_ChangedDate distinctBy $."_id"
+	},
+	"INTEL_ERP_Company_Codes" : {
+		"Update_History" : (payload.changeHistory.changes
+			filter (not isEmpty ($.groups.INTEL_Company_Code))
+               flatMap ((item, index) ->
+			    item.groups.INTEL_Company_Code filter ($.changeType =="update") map (v, k) ->  {
+			        "_id" : v."_id",
+			        "CompanyCodes_ChangedDate" : formatdatetime(item.updatedAt),
+			        "CompanyCodes_ChangedBy" : item.changedBy.name
+                } 
+            ) 
+        ) orderBy - $.CompanyCodes_ChangedDate distinctBy $."_id"
+	},
+//	"INTEL_ERP_Business_Blocks" : {
+ //       "Update_History" : (payload.changeHistory.changes
+  //          filter (not isEmpty ($.groups.INTEL_Block))
+  //             flatMap ((item, index) ->
+  //              item.groups.INTEL_Block filter ($.changeType =="update") map (v, k) ->  {
+  //                  "_id" : v."_id",
+  //                  "BusinessBlocks_ChangedDate" : formatdatetime(item.updatedAt),
+   //                 "BusinessBlocks_ChangedBy" : item.changedBy.name
+   //             }
+   //         )
+   //     ) orderBy - $.BusinessBlocks_ChangedDate distinctBy $."_id"
+  //  }
+}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+			<ee:transform doc:name="History Simplication" doc:id="9a89fb9c-d871-40b5-a0e0-731592bf7eb6">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="UpdateFinal"><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+---
+{
+	"INTEL_ERP_Activity" : vars.updateHistory.INTEL_ERP_Activity.Update_History filter ($.Difference?) flatMap ((item, index) ->
+		item.Difference map ((v, k) -> {
+			"Entity_id" : item.Entity_id,
+			"Difference" : v,
+			"UpdatedAt" : item.UpdatedAt
+			})
+	),
+	"INTEL_ERP_Role" : vars.updateHistory.INTEL_ERP_Role.Update_History filter ($.Difference?) flatMap ((item, index) ->
+		item.Difference map ((v, k) -> {
+			"Entity_id" : item.EntityID,
+			"Difference" : v,
+			"UpdatedAt" : item.UpdatedAt
+		})
+	),
+	"INTEL_Company_Code_Payment_Method" : vars.updateHistory.INTEL_Company_Code_Payment_Method.Update_History filter ($.Difference?) flatMap ((item, index) ->
+		item.Difference map ((v, k) -> {
+			"Entity_id" : item.Entity_id,
+			"Difference" : v,
+			"UpdatedAt" : item.UpdatedAt
+		})
+	),
+	"INTEL_Company_Code_Payment_Term" : vars.updateHistory.INTEL_Company_Code_Payment_Term.Update_History filter ($.Difference?) flatMap ((item, index) ->{
+			"Entity_id" : item.Entity_id,
+			"Difference" : item.Difference,
+			"UpdatedAt" : item.UpdatedAt
+		})
+}
+
+
+
+
+]]></ee:set-variable>
+					<!-- <ee:set-variable variableName="RoleFinal" ><![CDATA[%dw 2.0
+output application/json encoding = "UTF-8", skipNullOn = "everywhere"
+-&#45;&#45;
+{
+	"INTEL_ERP_Role": vars.insertAuditHistory.INTEL_ERP_Role.Insert_History filter ($.Difference?) flatMap ((item, index) ->
+
+{
+		"Entity_id": item.EntityID,
+		"Insert_History": [{
+			"Difference": item.Difference,
+			"UpdatedAt": item.UpdatedAt,
+			"SupplierRole_CreatedDate": item.SupplierRole_CreatedDate,
+			"SupplierRole_CreatedBy": item.SupplierRole_CreatedBy
+		}]
+	}
+
+    )
+}]]></ee:set-variable> -->
+			</ee:variables>
+		</ee:transform>
+			<intel-json-logger:logger doc:name="Answer History Begin" doc:id="c12bfd00-bb1b-48c7-84fc-fced8e79881b" message="Answer History Begin" />
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="2b087ac4-1a9e-41a0-b38d-3145344e49bb" >
+					<intel-json-logger:logger doc:name="Answer History Error" doc:id="c67c77a2-2157-4435-b050-5c94866908a6" message="Answer History Error"/>
+					<flow-ref doc:name="Send Mail for Exception" doc:id="b964961f-cffa-4132-9bc5-b97a6603e951" name="eip-parse-exception-email-template"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="changes_connections" doc:id="3b9b7dac-25dd-46fc-92ef-341569509ab7" >
+	<intel-json-logger:logger doc:name="Begin getting Changed Connection IDs" doc:id="510dc4d2-e93f-4263-8d0d-e52d94ecd610" message="Begin getting Changed Connection IDs" />
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="c4892274-2d3d-448a-8697-b52116117148" >
+			<http:request method="GET" doc:name="Get Changed Connection IDs" doc:id="927976b7-f227-48d1-9b89-1cefb4c1ffdf" config-ref="Graphite" path="/${secure::graphite_get_path1}">
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+			<http:query-params><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	connectionPhases : p('secure::connectionPhases'),
+	interface : p('secure::interface')
+}]]]></http:query-params>
+		</http:request>
+		</until-successful>
+		<compression:decompress doc:name="Decompress" doc:id="501fe736-2147-4d0b-b054-42baee7c76ed" outputMimeType="application/json">
+			<compression:decompressor >
+				<compression:gzip-decompressor />
+			</compression:decompressor>
+		</compression:decompress>
+		<set-variable value='#[["TW500096"]]' doc:name="ChangedConnections Variable" doc:id="17895a86-72fa-4d8d-ac55-7cb07baf418c" variableName="ChangedConnections"/>
+		<intel-json-logger:logger doc:name="Changed Connections List" doc:id="d4c94eae-34d7-4bdc-b80d-760271723d15" message='#[joinBy(vars.ChangedConnections, ", ")]' /> 
+</sub-flow>
+<sub-flow name="OAuthToken" doc:id="31246d07-dc5e-4352-bff0-b83b72ad1811" >
+		<intel-json-logger:logger doc:name="Starting Get OAuth token" doc:id="fdb40e0a-3db4-4f5b-a9ec-9574face2979" message="Starting Get OAuth token"/>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="e3d3be37-2a25-4477-8cb2-3b87725e33a9" >
+			<http:request method="POST" doc:name="Get OAuth Token" doc:id="ec5e93c8-2ece-4d23-9cb8-309410039864" config-ref="Graphite" path="${secure::graphite_token_path}">
+			<http:body><![CDATA[#[output application/x-www-form-urlencoded encoding="UTF-8"
+---
+{"client_id": p('secure::client_id'), "client_secret": p('secure::client_secret'), "grant_type": p('secure::graphite_grant_type')}]]]></http:body>
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Content-Type" : "application/x-www-form-urlencoded"
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<set-variable value='#["Bearer " ++ (payload.access_token)]' doc:name="Persisit Graphite Token To Variable" doc:id="5bc401e0-96c1-4ffe-afe9-c83e7cd4167d" variableName="graphiteToken" />
+		<intel-json-logger:logger doc:name="OAuth Token Obtained" doc:id="1f9f1347-9071-43f3-97ce-9ff1f3eb81fd" message='#["OAuth Token : " ++ (vars.graphiteToken) ++ " Obtained"]' />
+	</sub-flow>
+	<sub-flow name="get_profile" doc:id="fcf9c04c-8a70-4bcb-ba9a-ae17dbef1a68" >
+	<try doc:name="Try" doc:id="0971042e-53d6-4563-9c63-767c3b171ebf" >
+			<intel-json-logger:logger doc:name="Start Get Profile" doc:id="72d6b505-57fd-4001-afbd-a778f90a649d" message="Begin Getting Profile for connection ID" />
+			<ee:transform doc:name="Set Variable path" doc:id="65173b59-22bc-4d00-a506-165f36c22312">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="path"><![CDATA[%dw 2.0
+output application/java
+---
+p('secure::graphite_get_path2') ++ vars.CurrentSupplierID ++ "?answerKeys=" ++ vars.module]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="02c6ff3a-d632-4577-aa9d-9068d087da79" >
+				<http:request method="GET" doc:name="GetConnectionDetailsforGivenConnectionID" doc:id="c522defc-16be-4ef6-811a-59d50b85cba1" config-ref="Graphite" path="#[vars.path]" target="ConnectionData">
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+		</http:request>
+			</until-successful>
+			<ee:transform doc:name="Set Variables from supplierData" doc:id="26364fcf-acb7-4e37-afb7-157c94966dda">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="connectionID"><![CDATA[%dw 2.0
+output application/java
+---
+vars.ConnectionData.connectionId
+]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+			<intel-json-logger:logger doc:name="AckDataLogger" doc:id="5b8ef609-8b1e-428a-9009-f9035f36a1d4" message='#["Public Id: "  ++ (vars.CurrentSupplierID)]' />
+			<intel-json-logger:logger doc:name="End Getting Profile" doc:id="8abe88fb-33be-4bda-bc70-b64f6becb067" message="Done Getting Profile" />
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="f1e772f8-535a-497b-865c-14a69e7f2e92" >
+					<intel-json-logger:logger doc:name="Get Profile Error" doc:id="9a06f118-52c6-4294-a3a9-35a87d652a1f" message="Get Profile Error"/>
+					<flow-ref doc:name="Send Mail for Exception" doc:id="433002a4-8b13-476c-841b-978388be6106" name="eip-parse-exception-email-template"/>
+				</on-error-continue>
+			</error-handler>
+		</try> 
+</sub-flow>
+	<sub-flow name="post_entities" doc:id="3b7961f6-00c0-4330-b75a-2c858be6b792" >
+		<intel-json-logger:logger doc:name="Begin ReltioSync Application" doc:id="17e6caff-40a7-4d32-93b2-0ec5683ce48f" message="Begin Reltio Sync Application" />
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="efc46747-c238-42e3-a9ae-981960a6813e" >
+			<http:request method="POST" doc:name="SupplierSync2Reltio" doc:id="1643fe5a-f887-4def-8679-d63967c41d4e" config-ref="ReltioAPI" path="${secure::reltio_post_path}/${secure::reltio_entities}">
+			<http:body><![CDATA[#[vars.supplierData]]]></http:body>
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="Set Variables for Patch, Ack, ReltioError" doc:id="e2524f45-3da1-470b-b946-1e6c0feac8be" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="BusinessOrgPartyID" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.object.attributes.SupplierIdentifier[0].value[0]]]></ee:set-variable>
+				<ee:set-variable variableName="IntelErpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.object.attributes.SupplierLifecycleStatuses.LifecycleStatusTypeCode.value]]></ee:set-variable>
+				<ee:set-variable variableName="ReltioError" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.errors.errorDetailMessage[0] default ""]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="1bc5e5c8-744c-4b68-984f-cd729ae57b91" >
+			<when expression="#[sizeOf(vars.ReltioError) &gt; 0]">
+				<flow-ref doc:name="Send Mail for Reltio Exception" doc:id="6fd1ac6b-4c9a-4e56-8bc5-72d33c75dee7" name="eip-parse-exception-email-template"/>
+			</when>
+			<otherwise >
+				<intel-json-logger:logger doc:name="Reltio Sync Success" doc:id="0ff274f4-cbcd-490c-b246-7134434effd1" message="Reltio Sync Success"/>
+			</otherwise>
+		</choice>
+		<intel-json-logger:logger doc:name="End Reltio Sync Application" doc:id="452f7b88-d4d5-4bc6-822e-ec3c1f86a6a9" message="End Reltio Sync Application" />
+	</sub-flow>
+	<sub-flow name="patch_profile" doc:id="70c78364-a100-42d3-bc6d-9e0201c98163" >
+		<intel-json-logger:logger doc:name="Begin Patch Application" doc:id="e31b360d-0f4a-480a-b3ac-73dd7fc0f60c" message="BeginPatch" />
+		<choice doc:name="Choice" doc:id="0252fc4b-cc3d-4c27-b52e-96e41f26ee87" >
+			<when expression="#[vars.BusinessOrgPartyID == null and isEmpty(vars.ReltioError)]">
+				<until-successful maxRetries="5" doc:name="Until Successful" doc:id="a250cd9b-5f7e-4b73-8cca-2b6855b7ca8d" >
+					<http:request method="PATCH" doc:name="GetProfileFor GivenConnectionID" doc:id="9fa9871f-9d60-474a-a5c1-6619c1cc5e7e" config-ref="Graphite" path="/${secure::graphite_get_path2}/{connId}">
+			<http:body><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+    "ERP_Record": [{
+    	"_id":  vars.ERP_Record_ID, 
+        "INTEL_ERP_Status": vars.IntelErpStatus, 
+        "ERP_ID": vars.BusinessOrgPartyID
+     }]
+}]]]></http:body>
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	connId : vars.CurrentPublicId
+}]]]></http:uri-params>
+		</http:request>
+				</until-successful>
+				<compression:decompress doc:name="Decompress" doc:id="4fb79701-aec5-4f70-bfaa-6adf9d538ea9" outputMimeType="application/json">
+			<compression:decompressor>
+				<compression:gzip-decompressor />
+			</compression:decompressor>
+		</compression:decompress>
+				<intel-json-logger:logger doc:name="Connection Patched" doc:id="f55a3601-e39a-4ca2-a435-10027abbae76" message="Connection Patched" />
+			</when>
+			<otherwise >
+				<intel-json-logger:logger doc:name="No Patching Required " doc:id="8dfee3fd-af62-45dc-8c9f-1bf60120a5a8" message="No Patching Required (BusinessOrgPartyID is not null)"/>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="changes_acknowledge" doc:id="ed3e467b-703f-4a57-9d88-2d7d3755d0ef" >
+		<intel-json-logger:logger doc:name="Begin Acknowledgement" doc:id="5b8c1113-77b4-498e-8ad6-772ab51fcca3" message="Begin Acknowledgement" />
+		<set-payload value="#[output application/json encoding=&quot;UTF-8&quot;&#10;&#10;---&#10;&#10;{&#10;	&#10;	&quot;publicIds&quot;: [vars.CurrentSupplierID],&#10;&#10;    &quot;interface&quot;: p('secure::interface'),&#10;&#10;    &quot;instanceIds&quot;: if (vars.AcknowledgementERPIDs != null) vars.AcknowledgementERPIDs else vars.erpRecordEntityID,&#10;    &#10;    &quot;errors&quot; : vars.ReltioError&#10;&#10; }]" doc:name="Set Payload" doc:id="f54a862d-2016-473b-b763-0f5caf45dcc2" />
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="de5046db-5814-46e1-9fab-3e783d74c001" >
+			<http:request method="POST" doc:name="AcknowledgementConnectionID" doc:id="23e7ad97-b39f-4d4c-a2af-0df9d5402c1c" config-ref="Graphite" path="${secure::graphite_get_path3}" sendCorrelationId="ALWAYS">
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken)
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<intel-json-logger:logger doc:name="End Acknowledgement" doc:id="4be73838-149d-4531-8da5-a8fcd896d268" message="Acknowledge Completed" />
+	</sub-flow>
+	</mule>

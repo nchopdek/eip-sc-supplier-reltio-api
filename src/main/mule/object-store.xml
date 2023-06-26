@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+ 
+
+<mule xmlns:redis="http://www.mulesoft.org/schema/mule/redis" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+    xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+    xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/redis http://www.mulesoft.org/schema/mule/redis/current/mule-redis.xsd">
+<flow name="ObjectstoreFlow" doc:id="af1e9b2d-48ea-499e-9536-b66178bea735" >
+<logger level="INFO" doc:name="Logger" doc:id="05e99d30-c205-48df-b4be-bad54e06a908" message="objectstore"/>
+<ee:transform doc:name="Transform Message" doc:id="b38ce9a2-615e-484c-9c31-f2fee6a36787" >
+<ee:message >
+</ee:message>
+<ee:variables >
+<ee:set-variable variableName="Role" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+attributes.queryParams.SupplierRolelastrundate]]></ee:set-variable>
+<ee:set-variable variableName="activity" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+attributes.queryParams.Date]]></ee:set-variable>
+				<ee:set-variable variableName="addressUsage" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+attributes.queryParams.addressUsageDate]]></ee:set-variable>
+
+</ee:variables>
+</ee:transform>
+<choice doc:name="Choice" doc:id="355beeee-8262-4b8a-88c2-16c4804650fb" >
+<when expression="#[vars.activity != null]">
+<os:store doc:name="Store" doc:id="5a96b697-e019-431a-a3ec-d41c6191a632" key="lastrunDate" objectStore="Object_store" >
+<os:value ><![CDATA[#[vars.activity]]]></os:value>
+</os:store>
+				<os:retrieve doc:name="Retrieve" doc:id="15555873-afa5-458e-a682-a809ac10d9b4" key="lastrunDate" objectStore="Object_store">
+<os:default-value><![CDATA[0]]></os:default-value>
+</os:retrieve>
+
+</when>
+<when expression="#[vars.Role != null]">
+<os:store doc:name="Store" doc:id="0c349563-5edd-4a1d-80f8-d4886a10d4c4" key="SupplierRolelastrundate" objectStore="Object_store">
+<os:value ><![CDATA[#[vars.Role]]]></os:value>
+</os:store>
+				<os:retrieve doc:name="Retrieve" doc:id="9a30c995-c9f0-453a-9e5f-f52624b6ac3a" key="SupplierRolelastrundate" objectStore="Object_store">
+<os:default-value ><![CDATA[0]]></os:default-value>
+</os:retrieve>
+
+</when>
+<when expression="#[vars.addressUsage !=null]">
+				<os:store doc:name="Store" doc:id="ca738f71-bd37-4cc7-b687-9ecb4f5730ef" key="AddresUsagelastrunDate" objectStore="Object_store">
+					<os:value ><![CDATA[#[vars.addressUsage]]]></os:value>
+				</os:store>
+				<os:retrieve doc:name="Retrieve" doc:id="2ec2a0b8-eaa7-4a03-afeb-69500a8a4325" key="AddresUsagelastrunDate" objectStore="Object_store">
+					<os:default-value ><![CDATA[0]]></os:default-value>
+				</os:retrieve>
+			</when>
+			<otherwise >
+<logger level="INFO" doc:name="Logger" doc:id="5a5be6d4-e9bd-4c70-9731-b61c5d3c3871" message="No Date inserted into Redis"/>
+</otherwise>
+</choice>
+<logger level="INFO" doc:name="Logger" doc:id="bb26ac59-770b-402d-b352-5773ba6a7a2d" message="Object store is completed"/>
+</flow>
+</mule>

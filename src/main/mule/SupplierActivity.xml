@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:redis="http://www.mulesoft.org/schema/mule/redis"
+	xmlns:compression="http://www.mulesoft.org/schema/mule/compression" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:intel-json-logger="http://www.mulesoft.org/schema/mule/intel-json-logger" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/intel-json-logger http://www.mulesoft.org/schema/mule/intel-json-logger/current/mule-intel-json-logger.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/compression http://www.mulesoft.org/schema/mule/compression/current/mule-compression.xsd
+http://www.mulesoft.org/schema/mule/redis http://www.mulesoft.org/schema/mule/redis/current/mule-redis.xsd">
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="476a439d-a7b9-4a2e-9445-0a2a564f5065" />
+	<flow name="SupplierActivityFlow" doc:id="26e7251f-28c6-4ab4-8e2d-206f35189f69" >
+		<intel-json-logger:logger doc:name="INFO: supplierActivity flow initiated" doc:id="96e9acef-53ad-43d0-829e-dffea7583ecd" message='"supplierActivity flow initiated"'/>
+		<ee:transform doc:name="Transform Message" doc:id="d1da90d6-3dc8-417a-a705-54a409436794">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="SupplierID" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+attributes.queryParams.SupplierID splitBy(",")]]></ee:set-variable>
+				<ee:set-variable variableName="date" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+attributes.queryParams.date]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<flow-ref doc:name="OAuthToken" doc:id="ec76180e-6a9d-44f2-99b0-2dbd6a616205" name="OAuthToken"/>
+		<intel-json-logger:logger doc:name="INFO: supplierActivity flow initiated" doc:id="11935ce6-ae70-4441-b50b-2e727a7f9eec" message='#["Recieved Auth Token " ++ "${secure::reltio_host}"]'/>
+		<os:retrieve doc:name="Retrieve" doc:id="0331b7ed-a3e4-4095-adb5-579ba83861f4" key="lastrunDate" objectStore="Object_store">
+			<os:default-value ><![CDATA[0]]></os:default-value>
+		</os:retrieve>
+		<intel-json-logger:logger doc:name="Logger" doc:id="351135b4-5ad1-4b4a-b6b0-f5af40afe853" message="#[payload]"/>
+		<ee:transform doc:name="Transform Message" doc:id="eb59db63-6812-4fde-81c9-c701221d6ece" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="currentdatetime" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+(now() >> "UTC") as String {format: "yyyy-MM-dd'T'HH:mm:ss.SSS"} as DateTime]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="d44bfc2e-7bbf-4f50-8516-d808b60995db" >
+			<when expression="#[sizeOf(vars.SupplierID) &gt; 0]">
+				<foreach doc:name="For Each" doc:id="36bb4992-bfcf-423e-89fe-b92c62bf0063" collection="#[vars.SupplierID]">
+					<try doc:name="Try" doc:id="510a52c1-311c-46cf-9bcc-0d7e3284008a" >
+						<intel-json-logger:logger doc:name="SupplierID" doc:id="a5b8902e-edb4-4af5-8761-61632e8b39d2" message="#[payload]"/>
+						<ee:transform doc:name="Transform Message" doc:id="90f9f29e-dc3b-44c6-8b9d-9111907047f8" >
+							<ee:message >
+							</ee:message>
+							<ee:variables >
+								<ee:set-variable variableName="historyFromdate" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+vars.date]]></ee:set-variable>
+								<ee:set-variable variableName="CurrentSupplierID" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload]]></ee:set-variable>
+							</ee:variables>
+						</ee:transform>
+						<flow-ref doc:name="SupplierAcivityAnswerHistory" doc:id="a5a8b764-177b-494f-946a-9f79d0031711" name="SupplierAcivityAnswerHistory"/>
+						<choice doc:name="Choice" doc:id="4606a0ce-1213-4b85-ba71-735cfb22e585" >
+							<when expression="#[!isEmpty(vars.insertActivityFinal != null) and !isEmpty(vars.DeleteActivityHistory != null)]">
+								<intel-json-logger:logger doc:name="ERP_Record Eligibility logger" doc:id="ed0cb998-61a0-4ca7-a303-6f7f85e56805" message='"ERP_Record is eligible for processing and ERP Record ID"'/>
+								<ee:transform doc:name="AuditMerge" doc:id="76627bc3-4c42-4f3c-97f9-72cc5cfe8f66">
+													<ee:message>
+													</ee:message>
+													<ee:variables >
+										<ee:set-variable variableName="DeleteMerge" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8",skipNullOn = "everywhere"
+---
+vars.DeleteActivityHistory.INTEL_ERP_Activity]]></ee:set-variable>
+										<ee:set-variable variableName="auditMerge" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn = "everywhere"
+---
+vars.insertActivityFinal.INTEL_ERP_Activity]]></ee:set-variable>
+													
+
+</ee:variables>
+												</ee:transform>
+								<flow-ref doc:name="SupplierActivityInsertSub_Flow" doc:id="dcd7ec08-b0e0-429b-a4eb-50fcc5bd482b" name="SupplierActivityInsertSub_Flow"/>
+								<flow-ref doc:name="SupplierActivityDeleteSub_Flow" doc:id="a6db1879-3030-4504-a65f-b95326fd2d12" name="SupplierActivityDeleteSub_Flow" />
+								<ee:transform doc:name="Transform Message" doc:id="2ddf8ded-9cf7-45e0-9348-1a2ee246c053">
+									<ee:message>
+									</ee:message>
+									<ee:variables>
+										<ee:set-variable variableName="AcknowledgementERPIDs" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+(vars.DeleteMerge ++ vars.auditMerge distinctBy $.Entity_id).*Entity_id]]></ee:set-variable>
+									</ee:variables>
+								</ee:transform>
+								<flow-ref doc:name="changes_acknowledge" doc:id="e84d24e0-3152-49cd-a481-322db5bcf3ee" name="changes_acknowledge"/>
+								<intel-json-logger:logger doc:name="ERP_Record Eligibility logger Ended" doc:id="cd78b0dd-5bff-49ff-8f24-4f4ff328e89c" message='"ERP_Record is eligible for processing and ERP Record ID Ended"'/>
+							</when>
+							<otherwise >
+								<intel-json-logger:logger doc:name="No ERP Record IDs" doc:id="40d385d2-9bed-45d4-a677-a607bb999b9a" message='"No ERP Record IDs are changed"'/>
+								<flow-ref doc:name="eip-parse-payloadnull-email-template" doc:id="4d2bf95b-283b-4048-92fa-f799f2f8a2a6" name="eip-parse-payloadnull-email-template"/>
+							</otherwise>
+						</choice>
+						<error-handler >
+							<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="3b2f36d3-da1c-49e4-9158-a9aa6450f2d6" >
+								<intel-json-logger:logger doc:name="Logger" doc:id="f763e53b-12c9-4f83-9050-730c14e23304" message='#["Supplier ID is failed in History:" ++ vars.CurrentSupplierID]'/>
+								<flow-ref doc:name="eip-parse-exception-email-template" doc:id="f2e1295e-1ee4-41a1-a20e-635f2990ea75" name="eip-parse-exception-email-template"/>
+							</on-error-continue>
+						</error-handler>
+					</try>
+				</foreach>
+			</when>
+			<otherwise >
+				<intel-json-logger:logger doc:name="No Supplier IDs " doc:id="41db58f8-7621-41fd-b9ab-704e77e01259" message='"No Supplier IDs are Changed for this Run"'/>
+				<flow-ref doc:name="eip-parse-payloadnull-email-template" doc:id="f58bafc1-8561-4acb-93d5-a21c6c6e93a4" name="eip-parse-payloadnull-email-template"/>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="a38f03e4-b4be-4da1-b27d-e8002fb13199" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="historyDate" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+(now() >> "UTC") as String {format: "yyyy-MM-dd'T'HH:mm:ss.SSS"} as DateTime]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<os:store doc:name="Store" doc:id="1459a0ec-3fe9-4eb3-848f-a1074cee3e4a" objectStore="Object_store" key="lastrunDate">
+			<os:value ><![CDATA[#[vars.historyDate]]]></os:value>
+		</os:store>
+		<ee:transform doc:name="Transform Message" doc:id="0984453e-59d6-4ddf-87f9-7aeb5e724e52" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.SupplierID]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<intel-json-logger:logger doc:name="Logger" doc:id="a5e7aa22-8e05-49c5-b6db-c27f3444410a" message="FlowEnded"/>
+	</flow>
+		
+	<sub-flow name="post_Supplierentities" doc:id="c05123b4-5079-4e1e-8ffa-6864331d392c" >
+		<intel-json-logger:logger doc:name="Inside post_Supplierentities Application" doc:id="62ff7384-d0e3-46f0-926d-eee7036ec3fd" message="Inside post_Supplierentities Application" />
+		<ee:transform doc:name="Transform Message" doc:id="3af1c5d6-bbd6-4568-884f-cb9ae5b07e11" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="Reltioentitiespath" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+p('secure::reltio_post_path') ++ p('secure::reltio_crosswalk_sync_path') ++ (if (vars.cummulativeInsert != null) (vars.cummulativeInsert[0].Entity_id) else (vars.cummulativeDelete.Entity_id)) ++ "?type=graphiteConnect&options=ovOnly&select=uri,attributes.SupplierActivities"]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="ea2cbba7-ccf7-47b7-a360-e6e94c40e659" >
+			<http:request method="GET" doc:name="SupplierSync2Reltio" doc:id="366b40c3-84a6-42c0-b026-9780fe8776fd" config-ref="ReltioAPI" path="#[vars.Reltioentitiespath]">
+			<http:body><![CDATA[#[vars.supplierData]]]></http:body>
+			<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="Transform Message" doc:id="18e926fc-2de5-4fe8-86f8-8967687d6e62">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="Uri" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+import * from dw::core::Strings
+---
+payload.object.uri joinBy ""]]></ee:set-variable>
+				<ee:set-variable variableName="BusinessOrgPartyID" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.object.attributes.SupplierActivities[0].value[0]]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="0fba9ea0-0392-4e82-bf53-b0d134597132">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+[(flatten(payload.object.attributes.SupplierActivities) filter ($.label  contains vars.Label ))[0]]]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+						<ee:set-variable variableName="Uri"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+import * from dw::core::Strings
+---
+payload.object.uri joinBy ""]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="6912a604-ce9e-4519-bb50-7c1f49958d16" >
+			<when expression='#[(vars.diffrence != "DeleteActivity")]'>
+				<ee:transform doc:name="Transform Message" doc:id="d91e4374-a20c-4244-ade5-8a8a22a052db">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+						<ee:set-variable variableName="PostActivityEntities" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.cummulativeInsert map ((item,index) ->
+{
+	"type": "INSERT_ATTRIBUTE",
+	"uri": vars.Uri ++ "/attributes/SupplierActivities",
+	"newValue": [
+        {
+          "value": {
+            "SupplierActivityCode": [
+              {
+                "value": vars.Label
+              }
+            ],
+            "EffectiveStartDateTime": [
+              {
+                "value": item.SupplierActivity_CreatedDate
+              }
+            ],
+            "EffectiveEndDateTime": [
+              {
+                "value": "2099-12-31T00:00:00.000Z"
+              }
+            ],
+            "CreateAgentIdentifier": [
+              {
+                "value": item.SupplierActivity_CreatedBy
+              }
+            ],
+            "CreateDateTime": [
+              {
+                "value": item.SupplierActivity_CreatedDate
+              }
+            ],
+            "ChangeAgentIdentifier": [
+              {
+                "value": item.SupplierActivity_CreatedBy
+              }
+            ],
+            "ChangeDateTime": [
+              {
+                "value": item.SupplierActivity_CreatedDate
+              }
+            ]
+          }
+        }
+      ],
+      "crosswalks": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeInsert.Entity_id
+      }
+})]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+				<ee:transform doc:name="Transform Message" doc:id="ee7a6bbb-4cd6-4d36-9972-83ff43d2935a">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="UpdateEntitiespath"><![CDATA[%dw 2.0
+output application/java
+---
+"/scds/operate/v1/supplier-" ++ vars.Uri ++ "/_update"]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<flow-ref doc:name="PostEntitiesTargetEndpoint" doc:id="7c4b1832-82d3-47c0-873c-888cbddad831" name="PostEntitiesTargetEndpoint" />
+			
+</when>
+			<when expression='#[(vars.diffrence == "DeleteActivity") and !isEmpty(payload) and payload !=[null]]'>
+				<ee:transform doc:name="Deletemapping" doc:id="a8e72d07-13c7-412e-b3eb-cc6c4d5404f4">
+			<ee:message />
+			<ee:variables>
+				<ee:set-variable variableName="createAgent"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.value map ((item, index) ->
+{
+"type": "UPDATE_ATTRIBUTE",
+"uri":item.ChangeAgentIdentifier.uri joinBy "",
+"newValue": [{
+    "value": vars.cummulativeDelete.UpdatedBy
+}],
+"crosswalks": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeDelete.Entity_id
+      }
+})]]></ee:set-variable>
+				<ee:set-variable variableName="effectivedate"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.value map ((item, index) ->
+{
+"type": "UPDATE_ATTRIBUTE",
+"uri":item.EffectiveEndDateTime.uri joinBy "",
+"newValue": [{
+    "value": vars.cummulativeDelete.UpdatedAt
+}],
+"crosswalks": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeDelete.Entity_id
+      }
+})]]></ee:set-variable>
+						<ee:set-variable variableName="ChangeDateTime"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.value map ((item, index) ->
+{
+"type": "UPDATE_ATTRIBUTE",
+"uri":item.ChangeDateTime.uri joinBy "",
+"newValue": [{
+    "value": vars.cummulativeDelete.UpdatedAt
+}],
+"crosswalks": {
+        "type": "configuration/sources/graphiteConnect",
+        "value": vars.cummulativeDelete.Entity_id
+      }
+})]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+				<ee:transform doc:name="Deletepayload" doc:id="2c556094-4bda-47fc-b838-9a9dd093afbe">
+			<ee:message>
+			</ee:message>
+			<ee:variables>
+						<ee:set-variable variableName="PostActivityEntities" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+vars.effectivedate ++ vars.createAgent ++ vars.ChangeDateTime]]></ee:set-variable>
+						<ee:set-variable variableName="UpdateEntitiespath" ><![CDATA[%dw 2.0
+output application/java
+---
+"/scds/operate/v1/supplier-" ++ vars.Uri ++ "/_update"]]></ee:set-variable>
+			
+</ee:variables>
+		</ee:transform>
+				<flow-ref doc:name="PostEntitiesTargetEndpoint" doc:id="1ec25c57-bb7b-4c6d-82b9-104fad535f2a" name="PostEntitiesTargetEndpoint"/>
+			
+</when>
+			<otherwise>
+				<intel-json-logger:logger doc:name="Logger" doc:id="71abf037-4645-4def-a4f1-859ad7c0fd89" message='"payloadnull"'/>
+			</otherwise>
+		</choice>
+		<intel-json-logger:logger doc:name="End post_Supplierentities Application" doc:id="61f87d4c-02c6-4188-83a7-b465e4070642" message="End post_Supplierentities Application" />
+	
+</sub-flow>
+	<sub-flow name="SupplierActivityInsertSub_Flow" doc:id="d8ddc1fd-2959-44d6-a2f2-f90f8b19fa47" >
+		<try doc:name="Try" doc:id="abefccea-8c79-4789-b92b-6d421506b6d0" >
+			<foreach collection="#[vars.auditMerge]">
+				<intel-json-logger:logger doc:name="SupplierActivityInsertSub_FlowStarted" doc:id="eb84e4d7-eaa8-4647-968a-3fdf3ba07930" message='#["Supplier Activity insert Started for ERP Record ID:" ++ payload.Entity_id ++ " and Activity is:"  ++ payload.Difference]' />
+				<ee:transform doc:name="Transform Message" doc:id="8f7998dc-0611-493b-b618-61173b198a12">
+														<ee:message>
+														</ee:message>
+														<ee:variables>
+						<ee:set-variable variableName="diffrence" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+"InsertActivity"]]></ee:set-variable>
+						<ee:set-variable variableName="cummulativeInsert" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8", skipNullOn = "everywhere"
+---
+[payload]
+    ]]></ee:set-variable>
+						<ee:set-variable variableName="erpRecordEntityID" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.Entity_id]]></ee:set-variable>
+						<ee:set-variable variableName="Label" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.Difference]]></ee:set-variable>
+														
+
+</ee:variables>
+													</ee:transform>
+				<flow-ref doc:name="post_entities" doc:id="471d1eff-594f-44f2-8be3-0ec77a03af42" name="post_Supplierentities" />
+				<intel-json-logger:logger doc:name="SupplierActivityInsertSub_FlowEnded" doc:id="dba2081b-6701-4c45-946c-e6ed3088b169" message='#["Supplier Activity Insert Successfull for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+			</foreach>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="36db0470-2f01-4890-a11f-b92577f7c32b" >
+					<intel-json-logger:logger doc:name="SupplierActivityInsertSub_FlowFailed" doc:id="92c92c5e-c5b3-41b9-b95e-a17d807679b1" message='#["Supplier Activity Insert Failed for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+					<flow-ref doc:name="eip-parse-exception-email-template" doc:id="751d51a7-2463-4068-890b-0683593a6621" name="eip-parse-exception-email-template"/>
+					<flow-ref doc:name="changes_acknowledge" doc:id="00681848-cc1b-497e-8910-163aabe748b1" name="changes_acknowledge"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+	<sub-flow name="SupplierActivityDeleteSub_Flow" doc:id="d7c8dca3-be65-4e7a-aeef-c047d6bdac3d" >
+		<try doc:name="Try" doc:id="c69d3f57-6236-4c72-88b7-81e35b2d4b43" >
+			<foreach doc:name="For Each" doc:id="a2b6c326-b13d-4614-a413-1025830c453c" collection="#[vars.DeleteMerge]">
+													<intel-json-logger:logger doc:name="Supplier Activity Delete Started" doc:id="adc74f38-f387-4d3d-b114-f0a03fecbcda" message='#["Supplier Activity Delete Started for ERP Record ID:" ++ payload.Entity_id ++ " and Activity is:"  ++ payload.Difference]' />
+									<ee:transform doc:name="Transform Message" doc:id="fbf7e2b2-2eeb-446a-9a96-970b389c85c3">
+														<ee:message>
+														</ee:message>
+														<ee:variables>
+															<ee:set-variable variableName="Label"><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.Difference]]></ee:set-variable>
+						<ee:set-variable variableName="diffrence" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+"DeleteActivity"]]></ee:set-variable>
+						<ee:set-variable variableName="cummulativeDelete" ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-variable>
+						<ee:set-variable variableName="erpRecordEntityID" ><![CDATA[%dw 2.0
+output application/json encoding ="UTF-8"
+---
+payload.Entity_id]]></ee:set-variable>
+														
+
+</ee:variables>
+													</ee:transform>
+													<flow-ref doc:name="post_Supplierentities" doc:id="a1f6f216-0a62-4bb7-a4b6-8985b04a3921" name="post_Supplierentities" />
+				<intel-json-logger:logger doc:name="Supplier Activity Ended_Flow" doc:id="bb844421-2598-4e01-b113-bc1b21932a5e" message='#["Supplier Activity Delete Successfull for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+												
+</foreach>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="b457aaf1-d243-421e-bcff-997450dd5344" >
+					<intel-json-logger:logger doc:name="SupplierActivityInsertSub_FlowFailed" doc:id="1e456007-aa9d-4da6-96da-1b065ce2d2b7" message='#["Supplier Activity Delete Failed for ERP Record ID:" ++ vars.erpRecordEntityID ++ " and Activity is:"  ++ vars.Label]'/>
+					<flow-ref doc:name="eip-parse-exception-email-template" doc:id="5f6ae352-6fbf-4a3d-b7e0-8f695a90b1c3" name="eip-parse-exception-email-template"/>
+					<flow-ref doc:name="changes_acknowledge" doc:id="110afbac-8a97-485d-a0dc-79d51f849a22" name="changes_acknowledge"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+
+	</sub-flow>
+		<sub-flow name="PostEntitiesTargetEndpoint" doc:id="20411f6e-9ea7-4bf2-b63a-d382d4a1a5f0" >
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="b573e315-2d49-4f36-9d68-9b203d20cc69" >
+			<http:request method="POST" doc:name="UpdateEntities" doc:id="16df304c-db02-4afa-8987-a398f12dc762" config-ref="ReltioAPI" path="#[vars.UpdateEntitiespath]">
+			<http:body><![CDATA[#[vars.PostActivityEntities]]]></http:body>
+					<http:headers><![CDATA[#[output application/json encoding="UTF-8"
+---
+{
+	"Authorization" : (vars.graphiteToken),
+	"Content-Type": "application/json" 
+}]]]></http:headers>
+		</http:request>
+		</until-successful>
+		<ee:transform doc:name="Transform Message" doc:id="549a12a3-c390-4999-b188-8caf89a9b2ae" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="IntelErpStatus" ><![CDATA[%dw 2.0
+output application/java
+---
+payload.attributes.SupplierActivities.label[0]]]></ee:set-variable>
+				<ee:set-variable variableName="ReltioError" ><![CDATA[%dw 2.0
+output application/json encoding="UTF-8"
+---
+payload.errors.errorDetailMessage[0] default ""]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	</sub-flow>
+</mule>

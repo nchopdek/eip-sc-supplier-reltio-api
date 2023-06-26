@@ -1,0 +1,49 @@
+name: 1) DEV
+on:
+  workflow_dispatch:
+  
+env:
+  SCRIPTS_HOME: /apps/scripts
+  REPO_NAME: ${{ github.event.repository.name }}
+  REPO_URL: ${{ github.event.repository.html_url }}
+  PUSHER: ${{ github.actor }}
+  DEPLOY_ENV: DEV
+jobs:
+  deploy-dev:
+    runs-on:
+      - ipaas-applications
+    environment: DEV
+    steps:
+      -
+        name: Echo Deploy Script
+        run: echo python3 $SCRIPTS_HOME/deployAppV3.py deploy $REPO_NAME $DEPLOY_ENV $GITHUB_WORKSPACE
+      -
+        name: Call Deploy Script
+        run: python3 $SCRIPTS_HOME/deployAppV3.py deploy $REPO_NAME $DEPLOY_ENV $GITHUB_WORKSPACE
+  squawk-dev:
+    runs-on:
+      - ipaas-applications
+    environment: DEV
+    needs: deploy-dev
+    steps:
+      -
+        name: Squawk
+        run: $SCRIPTS_HOME/SquawkV2.sh $REPO_NAME 12258 $REPO_URL $PUSHER $GITHUB_SHA $DEPLOY_ENV
+  test-dev:
+    runs-on:
+      - ipaas-applications
+    environment: DEV
+    needs: squawk-dev
+    steps:
+      -
+        uses: actions/checkout@v2
+         
+      -
+        name: Echo Postman Test
+        run: |
+         echo /apps/scripts/newman_tests.sh -l$GITHUB_WORKSPACE -a$REPO_NAME -e$DEPLOY_ENV
+
+      -
+        name: Postman Test
+        run: |
+         echo /apps/scripts/newman_tests.sh -l$GITHUB_WORKSPACE -a$REPO_NAME -e$DEPLOY_ENV

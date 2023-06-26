@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="con" path="MULE_LIB/com.mulesoft.connectors/mule-redis-connector/5.4.2"/>
+	<classpathentry kind="con" path="MULE_LIB/org.mule.connectors/mule-objectstore-connector/1.1.7"/>
+	<classpathentry kind="con" path="org.mule.tooling.MULE_PROJECT_LIB"/>
+	<classpathentry kind="con" path="MULE_LIB/org.mule.modules/mule-compression-module/2.1.2"/>
+	<classpathentry kind="con" path="MULE_LIB/org.mule.connectors/mule-email-connector/1.7.0"/>
+	<classpathentry kind="con" path="MULE_LIB/org.mule.modules/mule-validation-module/1.4.5"/>
+	<classpathentry kind="con" path="MULE_LIB/com.mulesoft.modules/mule-secure-configuration-property-module/1.2.4"/>
+	<classpathentry kind="con" path="MULE_LIB/org.mule.module/mule-java-module/1.2.10"/>
+	<classpathentry kind="con" path="MULE_LIB/org.mule.modules/mule-spring-module/1.3.6"/>
+	<classpathentry kind="con" path="MULE_LIB/fc983659-35e3-47bf-8b47-f90cdf5bf8ea/intel-json-logger/2.1.0"/>
+	<classpathentry kind="con" path="MULE_LIB/org.mule.connectors/mule-http-connector/1.5.17"/>
+	<classpathentry kind="src" path="/esb-domain"/>
+	<classpathentry exported="true" kind="con" path="MULE_RUNTIME/org.mule.tooling.server.4.2.2.ee"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="src" path="src/main/mule"/>
+	<classpathentry kind="src" path="src/main/java"/>
+	<classpathentry kind="src" path="src/main/resources"/>
+	<classpathentry kind="src" output="target/test-classes" path="src/test/java"/>
+	<classpathentry kind="src" output="target/test-classes" path="src/test/resources"/>
+	<classpathentry kind="src" path="src/test/munit"/>
+	<classpathentry kind="output" path="target/classes"/>
+</classpath>

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+ 
+    <Properties>
+        <!-- Populated by MPK -->
+        <Property name="MULE_ORG"></Property>
+        <Property name="APP_NAME">eip-sc-supplier-reltio-api</Property>
+       
+        <!-- Default settings of environment properties that, when deployed, come from the Mule Wrapper -->
+        <Property name="HOST">localhost</Property>
+        <Property name="MULE_INSTANCE">LOCALDEV</Property>
+        <!-- Location of NAS log root when -->
+        <Property name="MULE_NAS_HOME">C:\Mulesoft</Property>
+        <!-- NAS File size to trigger a file archive / rollover event -->
+        <Property name="MULE_NAS_SIZE">15 M</Property>
+        <!-- NAS Interval to trigger a file archive / rollover event -->
+        <Property name="MULE_NAS_ROLLOVER">7</Property>
+        <!-- NAS Number of files to retain -->
+        <Property name="MULE_NAS_RETENTION">10</Property>
+        <!-- Location of JSON log root -->
+        <Property name="MULE_LOG_HOME">C:\Mulesoft\Logs</Property>
+        <!-- JSON File size to trigger a file archive / rollover event -->
+        <Property name="MULE_LOG_SIZE">50 M</Property>
+        <!-- JSON Interval to trigger a file archive / rollover event -->
+        <Property name="MULE_LOG_ROLLOVER">7</Property>
+        <!-- JSON Number of files to retain -->
+        <Property name="MULE_LOG_RETENTION">3</Property>
+        <!-- Locations of rolling-log files -->
+        <Property name="NAS_LOCATION">${env:MULE_NAS_HOME}/Logs/${MULE_ORG}/${APP_NAME}</Property>
+        <Property name="LOG_LOCATION">${env:MULE_LOG_HOME}/${APP_NAME}</Property>
+        <!-- Specify Application Name by appending the HOST. This puts logs in different files when same app on multiple hosts -->
+        <Property name="APP_HOST">${APP_NAME}_${env:HOST}</Property>
+    </Properties>
+ 
+    <Scripts>
+        <!-- Sets the formatSelector variable to 'jsonFormat' if originates from JsonLogger -->
+        <Script name="formatSelector" language="nashorn"><![CDATA[
+            if (logEvent.getLoggerName().equals("org.mule.extension.jsonlogger.JsonLogger")) {
+                "jsonFormat";
+            } else {
+            	"loggerFormat"
+            }
+        ]]></Script>
+    </Scripts>
+ 
+    <Appenders>
+        <!-- Selects appender from AppenderSet based on MULE_INSTANCE value -->
+        <ScriptAppenderSelector name="ConsoleOrNull">
+            <Script language="nashorn"><![CDATA[
+                if ("${env:MULE_INSTANCE}"=="LOCALDEV" || "${env:MULE_INSTANCE}"=="LOCAL") {
+                    "console-appender";
+                } else {
+                	"null-appender";
+                }
+            ]]></Script>
+            <AppenderSet>
+            	<Null name="null-appender" />
+                <!-- Console Appender - for local logging only -->
+                <Console name="console-appender">
+                    <PatternLayout>
+                        <ScriptPatternSelector defaultPattern="Invalid Log Pattern: %d %p %m%n">
+                            <ScriptRef ref="formatSelector" />
+                            <PatternMatch key="jsonFormat"   pattern="%-5p %d xid=%-36X{xid} elapsed=%-5X{elapsed} | %X{msg}%n" />
+                            <PatternMatch key="loggerFormat" pattern="%-5p %d xid=%-36X{xid} elapsed=%-5X{elapsed} | %m%n" />
+                        </ScriptPatternSelector>
+                    </PatternLayout>
+                </Console>
+                
+            </AppenderSet>
+        </ScriptAppenderSelector>
+        
+        <!-- Rolling File to NAS Appender for deployment use -->
+        <RollingFile name="Rolling-NAS" fileName="${NAS_LOCATION}//Current-${APP_HOST}.log" filePattern="${NAS_LOCATION}/${date:yyyy-MM}/Archive-${APP_HOST}_-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout>
+                <ScriptPatternSelector defaultPattern="Invalid Log Pattern: %d %p %m%n">
+                    <ScriptRef ref="formatSelector" />
+                    <PatternMatch key="jsonFormat"   pattern="%-5p %d host=${env:HOST}(${env:MULE_INSTANCE}) xid=%-36X{xid} elapsed=%-5X{elapsed} | %X{msg}%n" />
+                    <PatternMatch key="loggerFormat" pattern="%-5p %d host=${env:HOST}(${env:MULE_INSTANCE}) xid=%-36X{xid} elapsed=%-5X{elapsed} | %m%n" />
+                </ScriptPatternSelector>
+            </PatternLayout>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="${env:MULE_NAS_SIZE}" />
+                <TimeBasedTriggeringPolicy interval="${env:MULE_NAS_ROLLOVER}" />
+            </Policies>
+            <DefaultRolloverStrategy max="${env:MULE_NAS_RETENTION}" />
+        </RollingFile>
+        <RollingFile name="Rolling-JSON" fileName="${LOG_LOCATION}//Current-${APP_HOST}.json" filePattern="${LOG_LOCATION}/${date:yyyy-MM}/Archive-${APP_HOST}_-%d{yyyy-MM-dd}-%i.log.gz">
+            <PatternLayout>
+                <Pattern>%m%n</Pattern>
+            </PatternLayout>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="${env:MULE_LOG_SIZE}" />
+                <TimeBasedTriggeringPolicy interval="${env:MULE_LOG_ROLLOVER}" />
+            </Policies>
+            <DefaultRolloverStrategy max="${env:MULE_LOG_RETENTION}" />
+        </RollingFile>
+    </Appenders>
+ 
+    <Loggers>
+    	   
+        <!-- set Hazelcast errors so we don't get inundated with them when they happen -->
+        <AsyncLogger name="com.hazelcast.queue.QueueContainer" level="ERROR" />
+        <AsyncLogger name="com.hazelcast.util.HealthMonitor" level="WARN" />
+        <AsyncLogger name="org.mule.runtime.deployment.model.internal" level="ERROR" />
+        <!-- Apache Commons tend to make a lot of noise which can clutter the log -->
+        <AsyncLogger name="org.apache" level="WARN" />
+        <!-- Reduce startup noise -->
+        <AsyncLogger name="org.springframework.beans.factory" level="WARN" />
+              
+        <!-- Set to DEBUG for verbose Router logs -->
+        <AsyncLogger name="com.intel.intg.router.URLRouter" level="INFO" />
+        <!-- Send JSON-Logger events to the Rolling-JSON Appender Setting 'additivity' to true means parent loggers also log -->
+        <AsyncLogger name="org.mule.extension.jsonlogger.JsonLogger" level="INFO" additivity="true">
+            <AppenderRef ref="Rolling-JSON" />
+        </AsyncLogger>
+        <!-- root logger (parent of all loggers) -->
+        <asyncRoot level="INFO">
+            <AppenderRef ref="ConsoleOrNull" />
+           	<AppenderRef ref="Rolling-NAS" />
+        </asyncRoot>
+    </Loggers>
+     
+</Configuration>
